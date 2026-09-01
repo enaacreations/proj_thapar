@@ -1,37 +1,25 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
-import { CheckCircle2, MapPin, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, MapPin } from "lucide-react";
 import { ADMIN_ROLE_LABELS } from "@proj/shared";
 import { useAuth } from "../auth";
 import { useSummary } from "../summary";
-import { SCOPE, modulesFor, type AppModule } from "../modules";
-import { ErrorState, Loading, Stat, greeting } from "../ui";
+import { SCOPE, launcherModules } from "../modules";
+import { ErrorState, Loading, ModuleTile, Stat, greeting } from "../ui";
 
 /**
- * Home is the launcher: a greeting, the three numbers worth knowing before
- * you start, and one tile per module. Everything deeper — lists, details,
- * filters — lives behind a tile, so this screen never grows a fourth section.
+ * Home is the launcher, and it opens onto three doors: the queue you sweep,
+ * everything else you run, and the console's own settings. A fourth tile is a
+ * decision to make before work starts, so every area lives behind Operations.
  */
 export default function Dashboard() {
   const { admin } = useAuth();
   const { data, error, reload } = useSummary();
   const hello = useGreeting();
-  const [filter, setFilter] = useState("");
 
   const modules = useMemo(
-    () => (admin ? modulesFor(admin.role) : []),
+    () => (admin ? launcherModules(admin.role) : []),
     [admin]
   );
-
-  const shown = useMemo(() => {
-    const term = filter.trim().toLowerCase();
-    if (!term) return modules;
-    return modules.filter(
-      (m) =>
-        m.name.toLowerCase().includes(term) ||
-        m.description.toLowerCase().includes(term)
-    );
-  }, [modules, filter]);
 
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (!data || !admin) return <Loading />;
@@ -80,62 +68,19 @@ export default function Dashboard() {
       </div>
 
       <div className="section-head">
-        <h2>Your modules</h2>
-        <div className="search-field">
-          <Search size={18} strokeWidth={2} className="search-icon" />
-          <input
-            value={filter}
-            aria-label="Find a module"
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Find a module…"
-          />
-        </div>
+        <h2>Where you work</h2>
       </div>
 
-      {shown.length === 0 ? (
-        <p className="muted small">
-          No module matches “{filter.trim()}”. Try another word.
-        </p>
-      ) : (
-        <div className="tiles">
-          {shown.map((mod) => (
-            <Tile key={mod.key} module={mod} nudge={mod.nudge?.(data) ?? null} />
-          ))}
-        </div>
-      )}
+      <div className="tiles lead">
+        {modules.map((mod) => (
+          <ModuleTile
+            key={mod.key}
+            module={mod}
+            nudge={mod.nudge?.(data) ?? null}
+          />
+        ))}
+      </div>
     </div>
-  );
-}
-
-function Tile({
-  module,
-  nudge,
-}: {
-  module: AppModule;
-  nudge: string | null;
-}) {
-  const [from, to, tint, tint2] = module.gradient;
-
-  return (
-    <Link
-      className="tile"
-      to={module.path}
-      // The four colours the tile's CSS paints itself from.
-      style={
-        {
-          "--tile-from": from,
-          "--tile-to": to,
-          "--tile-tint": tint,
-          "--tile-tint-2": tint2,
-        } as CSSProperties
-      }
-    >
-      <span className="tile-badge">
-        <module.icon size={30} strokeWidth={2} />
-      </span>
-      <span className="tile-name">{module.name}</span>
-      {nudge && <span className="nudge">{nudge}</span>}
-    </Link>
   );
 }
 

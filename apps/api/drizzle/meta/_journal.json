@@ -50,6 +50,20 @@
       "when": 1788300000000,
       "tag": "0006_resident_photo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788300001000,
+      "tag": "0007_site_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788300002000,
+      "tag": "0008_mess_entry_day",
+      "breakpoints": true
     }
   ]
 }

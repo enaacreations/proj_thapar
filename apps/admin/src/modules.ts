@@ -3,7 +3,10 @@ import {
   CalendarDays,
   CalendarHeart,
   ClipboardList,
+  LayoutGrid,
   MessageSquareWarning,
+  ScanLine,
+  Settings,
   Sparkles,
   Star,
   UserCheck,
@@ -55,6 +58,22 @@ export type TileGradient = readonly [
   tint2: string,
 ];
 
+/**
+ * Home is three doors, not fourteen. Everything that isn't the cross-module
+ * queue or the console's own settings sits behind Operations, grouped by the
+ * part of the job it belongs to — which is what `opsGroup` names.
+ */
+export type OpsGroup = "moving-in" | "services" | "house";
+
+export const OPS_GROUP_LABELS: Record<OpsGroup, string> = {
+  "moving-in": "Moving in",
+  services: "Services residents ask for",
+  house: "The house",
+};
+
+/** The order Operations lists its groups in, top to bottom. */
+const OPS_GROUP_ORDER: OpsGroup[] = ["moving-in", "services", "house"];
+
 export interface AppModule {
   key: string;
   name: string;
@@ -70,6 +89,9 @@ export interface AppModule {
   pages: ModulePage[];
   /** Short "there is work waiting" line on the Home tile. */
   nudge?: (d: AdminDashboard) => string | null;
+  /** Set on every module that lives behind Operations; absent on the three
+   *  the launcher shows directly. */
+  opsGroup?: OpsGroup;
 }
 
 /** The property this console is scoped to — never show global lists. */
@@ -141,6 +163,7 @@ export const MODULES: AppModule[] = [
     tint: "--accent",
     gradient: ["#3666CF", "#6FA0F0", "#6FA0F0", "#7C5CFF"],
     roles: ALL_ROLES,
+    opsGroup: "moving-in",
     pages: [
       {
         query: "",
@@ -163,6 +186,7 @@ export const MODULES: AppModule[] = [
     tint: "--info",
     gradient: ["#0EA5A5", "#3666CF", "#2CB9B9", "#3666CF"],
     roles: ALL_ROLES,
+    opsGroup: "moving-in",
     pages: [
       { query: "", label: "Everyone moving in", group: "tasks" },
       { query: "?filter=kyc", label: "Documents to check", group: "tasks" },
@@ -179,6 +203,7 @@ export const MODULES: AppModule[] = [
     tint: "--warning",
     gradient: ["#D97706", "#E8602C", "#E5A13D", "#E8602C"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: statusPages("maintenance"),
     nudge: (d) =>
       d.requestsByKind.maintenance
@@ -194,6 +219,7 @@ export const MODULES: AppModule[] = [
     tint: "--info",
     gradient: ["#0891B2", "#0EA5A5", "#22B8CF", "#0EA5A5"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: [
       ...statusPages("laundry", "Open pickups"),
       { query: "?view=board", label: "Pipeline board", group: "tasks" },
@@ -210,6 +236,7 @@ export const MODULES: AppModule[] = [
     tint: "--danger",
     gradient: ["#C73B33", "#E85D75", "#E0605A", "#C2459A"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: statusPages("complaint"),
     nudge: (d) =>
       d.requestsByKind.complaint ? `${d.requestsByKind.complaint} open` : null,
@@ -223,6 +250,7 @@ export const MODULES: AppModule[] = [
     tint: "--pop",
     gradient: ["#7C5CFF", "#C2459A", "#9B82FF", "#C2459A"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: statusPages("visit"),
     nudge: (d) =>
       d.requestsByKind.visit ? `${d.requestsByKind.visit} open` : null,
@@ -236,6 +264,7 @@ export const MODULES: AppModule[] = [
     tint: "--accent",
     gradient: ["#F2603C", "#C2459A", "#F2703A", "#C2459A"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: [
       { query: "?view=guests", label: "Guest meals", group: "requests" },
       { query: "", label: "Mess quality", group: "tasks" },
@@ -251,6 +280,7 @@ export const MODULES: AppModule[] = [
     tint: "--success",
     gradient: ["#16A34A", "#0EA5A5", "#34C58A", "#0EA5A5"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: [{ query: "", label: "Booked cleans", group: "tasks" }],
   },
   {
@@ -262,6 +292,7 @@ export const MODULES: AppModule[] = [
     tint: "--pop",
     gradient: ["#C2459A", "#7C5CFF", "#D06AB0", "#9B82FF"],
     roles: ALL_ROLES,
+    opsGroup: "services",
     pages: [{ query: "", label: "Space bookings", group: "tasks" }],
   },
   {
@@ -273,6 +304,7 @@ export const MODULES: AppModule[] = [
     tint: "--success",
     gradient: ["#E85D75", "#C2459A", "#E85D75", "#C2459A"],
     roles: ALL_ROLES,
+    opsGroup: "house",
     pages: [
       {
         query: "",
@@ -306,6 +338,7 @@ export const MODULES: AppModule[] = [
     tint: "--success",
     gradient: ["#157F5B", "#3666CF", "#34A57F", "#3666CF"],
     roles: ALL_ROLES,
+    opsGroup: "house",
     pages: [
       {
         query: "",
@@ -335,20 +368,98 @@ export const MODULES: AppModule[] = [
     tint: "--pop",
     gradient: ["#FF9A3D", "#C2459A", "#FFB25C", "#C2459A"],
     roles: ALL_ROLES,
+    opsGroup: "house",
     pages: [{ query: "", label: "All feedback", group: "requests" }],
     nudge: (d) => (d.averageRating ? `${d.averageRating} average` : null),
   },
+  {
+    key: "messdesk",
+    name: "Mess counter",
+    description: "Scan resident passes as plates go out",
+    path: "/mess-counter",
+    icon: ScanLine,
+    tint: "--success",
+    gradient: ["#157F5B", "#D97706", "#34A57F", "#E5A13D"],
+    roles: ALL_ROLES,
+    opsGroup: "services",
+    pages: [{ query: "", label: "Scan passes", group: "tasks" }],
+  },
+  {
+    key: "settings",
+    name: "Settings",
+    description: "Attendance geofence and other console settings",
+    path: "/settings",
+    icon: Settings,
+    tint: "--muted",
+    gradient: ["#6B7A8F", "#3666CF", "#8FA3B8", "#3666CF"],
+    roles: ALL_ROLES,
+    pages: [{ query: "", label: "Attendance geofence", group: "tasks" }],
+  },
 ];
+
+/**
+ * Operations owns no list of its own — its screen is the index of everything
+ * carrying an `opsGroup`. It is still a module, so the launcher tile, the
+ * sidebar and back navigation all treat it like any other door.
+ */
+export const OPERATIONS: AppModule = {
+  key: "operations",
+  name: "Operations",
+  description: "Move-in, services, residents and money",
+  path: "/operations",
+  icon: LayoutGrid,
+  tint: "--info",
+  gradient: ["#3666CF", "#6FA0F0", "#6FA0F0", "#7C5CFF"],
+  roles: ALL_ROLES,
+  pages: [],
+  nudge: (d) => {
+    if (d.registrations.pending) {
+      return `${d.registrations.pending} waiting for review`;
+    }
+    const without = d.residents.total - d.residents.withRoom;
+    return without > 0 ? `${without} without a room` : null;
+  },
+};
 
 /** Role-gating is a filter, not a disabled state — hidden modules don't exist. */
 export function modulesFor(role: AdminRole): AppModule[] {
   return MODULES.filter((m) => m.roles.includes(role));
 }
 
+/** The areas behind the Operations tile, in the order they're declared. */
+export function operationsModules(role: AdminRole): AppModule[] {
+  return MODULES.filter((m) => m.opsGroup && m.roles.includes(role));
+}
+
+/** Operations split into its groups, empty groups dropped. */
+export function operationsGroups(
+  role: AdminRole
+): { group: OpsGroup; modules: AppModule[] }[] {
+  const areas = operationsModules(role);
+  return OPS_GROUP_ORDER.map((group) => ({
+    group,
+    modules: areas.filter((m) => m.opsGroup === group),
+  })).filter((g) => g.modules.length > 0);
+}
+
+/**
+ * The three tiles Home shows: the queue you sweep, everything else, and the
+ * console's own settings. Operations is dropped when a role can open none of
+ * the areas behind it, rather than opening onto an empty index.
+ */
+export function launcherModules(role: AdminRole): AppModule[] {
+  const flat = MODULES.filter((m) => !m.opsGroup && m.roles.includes(role));
+  const at = (key: string) => flat.find((m) => m.key === key);
+  const hasAreas = operationsModules(role).length > 0;
+
+  return [at("requests"), hasAreas ? OPERATIONS : undefined, at("settings")]
+    .filter((m): m is AppModule => m !== undefined);
+}
+
 export function moduleAt(pathname: string): AppModule | null {
   // Longest path first, so /requests never swallows a module nested under it.
   return (
-    [...MODULES]
+    [...MODULES, OPERATIONS]
       .sort((a, b) => b.path.length - a.path.length)
       .find((m) => pathname === m.path || pathname.startsWith(`${m.path}/`)) ??
     null
@@ -360,4 +471,15 @@ export function groupsOf(module: AppModule): PageGroup[] {
   return (["requests", "tasks"] as PageGroup[]).filter((g) =>
     module.pages.some((p) => p.group === g)
   );
+}
+
+/**
+ * The count a module's default page carries, reused as the count beside its
+ * row in the Operations sidebar — one number per area, already defined once.
+ */
+export function defaultCountOf(
+  module: AppModule,
+  data: AdminDashboard
+): number | null {
+  return module.pages[0]?.count?.(data) ?? null;
 }

@@ -181,6 +181,43 @@ export interface AdminDashboard {
   };
 }
 
+/* --------------------------------------------------------------- settings */
+
+/**
+ * The circle attendance is measured against. Marking in outside it is flagged,
+ * not blocked, so this tunes reporting rather than gating anyone out.
+ */
+export interface AttendanceGeofence {
+  latitude: number;
+  longitude: number;
+  radiusMetres: number;
+  /** Shown on a resident's record when they mark in inside the circle. */
+  locationLabel: string;
+  /** Null until an admin saves it for the first time. */
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export type UpdateGeofenceBody = Omit<
+  AttendanceGeofence,
+  "updatedAt" | "updatedBy"
+>;
+
+/** Where the campus sits until someone changes it in the admin console. */
+export const DEFAULT_GEOFENCE: UpdateGeofenceBody = {
+  latitude: 30.3549,
+  longitude: 76.3626,
+  radiusMetres: 300,
+  locationLabel: "Thapar, Block B",
+};
+
+/** Guard rails the API enforces and the console shows as helper text. */
+export const GEOFENCE_LIMITS = {
+  latitude: { min: -90, max: 90 },
+  longitude: { min: -180, max: 180 },
+  radiusMetres: { min: 25, max: 5000 },
+} as const;
+
 export const ADMIN_ROUTES = {
   login: "/api/admin/auth/login",
   logout: "/api/admin/auth/logout",
@@ -207,4 +244,8 @@ export const ADMIN_ROUTES = {
   residentPayments: (id: string) => `/api/admin/residents/${id}/payments`,
 
   feedback: "/api/admin/feedback",
+
+  geofence: "/api/admin/settings/geofence",
+
+  messScan: "/api/admin/mess/scan",
 } as const;

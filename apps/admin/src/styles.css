@@ -1404,6 +1404,72 @@ dl {
   color: var(--ink);
 }
 
+/*
+ * Two sizes of the same tile. `lead` is Home's three-across card, wide enough
+ * to carry the module's own sentence; `compact` is how Operations lists its
+ * areas, where the name and the nudge are the whole story.
+ */
+/* Flex rather than auto-fit: with only three tiles a grid keeps an empty
+   fourth track, and the row would sit off-centre by one gap. */
+.tiles.lead {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.tile.lead {
+  aspect-ratio: auto;
+  min-height: 232px;
+  padding: 28px 22px;
+  flex: 1 1 240px;
+}
+
+.tile-sub {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 24ch;
+  margin-top: -4px;
+}
+
+.tiles.compact {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 12px;
+}
+
+.tile.compact {
+  aspect-ratio: auto;
+  min-height: 132px;
+  gap: 9px;
+  padding: 16px 12px;
+  border-radius: 14px;
+}
+
+.tile.compact .tile-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.tile.compact .tile-name {
+  font-size: 14px;
+}
+
+.tile.compact .nudge {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+/* Shelf heading inside Operations — quieter than an h2, louder than a caption. */
+.group-label {
+  font-family: var(--app-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
 /* Sidebar module chip — flat semantic tint, not the launcher's gradient. */
 .tile-icon {
   width: 40px;

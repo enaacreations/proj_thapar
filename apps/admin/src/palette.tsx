@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, Search } from "lucide-react";
 import type { AdminRole } from "@proj/shared";
-import { GROUP_LABELS, modulesFor } from "./modules";
+import { GROUP_LABELS, OPERATIONS, modulesFor } from "./modules";
 
 interface Entry {
   to: string;
@@ -15,8 +15,16 @@ interface Entry {
 /** Only pages this role can open are searchable — the gate is the same one the
  *  sidebar uses, so the palette can never route someone somewhere hidden. */
 function entriesFor(role: AdminRole): Entry[] {
+  // The palette still indexes every page, so a two-level shell never costs a
+  // keyboard user the step it saves everyone else.
   const list: Entry[] = [
     { to: "/", label: "Home", module: "Launcher", group: "" },
+    {
+      to: OPERATIONS.path,
+      label: OPERATIONS.name,
+      module: "Launcher",
+      group: OPERATIONS.description,
+    },
   ];
 
   for (const mod of modulesFor(role)) {

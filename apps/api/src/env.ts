@@ -23,4 +23,13 @@ export const env = {
     "DATABASE_URL",
     "postgres://localhost:5432/thapar"
   ),
+  /**
+   * Signs mess passes. The dev fallback keeps `npm run dev` working on a fresh
+   * clone; in production an unset value would let anyone mint a valid pass, so
+   * it is required outright.
+   */
+  messPassSecret:
+    process.env.NODE_ENV === "production"
+      ? required("MESS_PASS_SECRET")
+      : (process.env.MESS_PASS_SECRET ?? "dev-only-mess-pass-secret"),
 } as const;

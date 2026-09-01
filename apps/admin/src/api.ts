@@ -10,6 +10,9 @@ import {
   type AdminUser,
   type AllocateRoomBody,
   type ApiError,
+  type AttendanceGeofence,
+  type MessScanResult,
+  type UpdateGeofenceBody,
   type PaymentPlanBody,
   type PaymentSummary,
   type RecordPaymentBody,
@@ -286,6 +289,21 @@ export const api = {
 
   amenityBookings: () =>
     request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.amenityBookings),
+
+  /* mess counter */
+  scanMessPass: (token: string) =>
+    request<MessScanResult>(ADMIN_ROUTES.messScan, {
+      method: "POST",
+      body: { token },
+    }),
+
+  /* settings */
+  geofence: () => request<AttendanceGeofence>(ADMIN_ROUTES.geofence),
+  saveGeofence: (body: UpdateGeofenceBody) =>
+    request<AttendanceGeofence>(ADMIN_ROUTES.geofence, {
+      method: "PUT",
+      body,
+    }),
 };
 
 export function messageOf(err: unknown): string {

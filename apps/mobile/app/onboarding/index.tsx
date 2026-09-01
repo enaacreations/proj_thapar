@@ -6,7 +6,6 @@ import {
   type OnboardingProgress,
 } from "@proj/shared";
 import {
-  BedDouble,
   CheckCircle2,
   ClipboardCheck,
   FileSignature,
@@ -142,28 +141,6 @@ export default function OnboardingHub() {
                 </View>
               </Card>
             ))}
-
-            <Text variant="section" style={styles.sectionHead}>
-              Before you arrive
-            </Text>
-
-            <Card
-              accessibilityLabel="Take a look around"
-              onPress={() => router.push("/onboarding/tour")}
-            >
-              <View style={styles.row}>
-                <View style={[styles.chip, { backgroundColor: withAlpha(c.pop, 0.12) }]}>
-                  <BedDouble size={20} color={c.pop} strokeWidth={2} />
-                </View>
-                <View style={styles.body}>
-                  <Text variant="cardTitle">Take a look around</Text>
-                  <Text variant="label" tone="muted">
-                    Walk through the room and common areas, and plan where your
-                    things will go.
-                  </Text>
-                </View>
-              </View>
-            </Card>
           </>
         )}
       </Screen>
@@ -183,5 +160,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   body: { flex: 1, gap: 6 },
-  sectionHead: { marginTop: space.md },
 });

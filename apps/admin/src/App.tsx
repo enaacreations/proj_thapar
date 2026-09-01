@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import {
   Bell,
   Home,
+  LayoutGrid,
   LogOut,
   MapPin,
   Menu,
@@ -10,22 +11,28 @@ import {
   Search,
   Sun,
 } from "lucide-react";
-import { ADMIN_ROLE_LABELS } from "@proj/shared";
+import { ADMIN_ROLE_LABELS, type AdminRole } from "@proj/shared";
 import { useAuth } from "./auth";
 import { useTheme } from "./theme";
 import { SummaryProvider, useSummary } from "./summary";
 import {
   GROUP_LABELS,
+  OPERATIONS,
+  OPS_GROUP_LABELS,
   SCOPE,
+  defaultCountOf,
   groupsOf,
+  launcherModules,
   moduleAt,
   modulesFor,
+  operationsGroups,
   type AppModule,
 } from "./modules";
 import { CommandPalette } from "./palette";
 import { BackLink, Loading, initials } from "./ui";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Operations from "./pages/Operations";
 import Registrations from "./pages/Registrations";
 import RegistrationDetail from "./pages/RegistrationDetail";
 import Requests from "./pages/Requests";
@@ -39,6 +46,8 @@ import Finance from "./pages/Finance";
 import Food from "./pages/Food";
 import Laundry from "./pages/Laundry";
 import Bookings from "./pages/Bookings";
+import MessDesk from "./pages/MessDesk";
+import Settings from "./pages/Settings";
 
 export default function App() {
   const { admin, restoring } = useAuth();
@@ -61,7 +70,11 @@ function Shell() {
 
   // A module route gets that module's sidebar; Home is the bare launcher.
   const activeModule = moduleAt(location.pathname);
-  const allowed = admin ? modulesFor(admin.role) : [];
+  // Operations only counts as allowed when the role can open something behind
+  // it, which is exactly the rule the launcher uses.
+  const allowed = admin
+    ? [...modulesFor(admin.role), ...launcherModules(admin.role)]
+    : [];
   const visibleModule =
     activeModule && allowed.some((m) => m.key === activeModule.key)
       ? activeModule
@@ -95,7 +108,11 @@ function Shell() {
       <div className="shell-body">
         {visibleModule && (
           <>
-            <ModuleSidebar module={visibleModule} open={drawerOpen} />
+            {visibleModule.key === OPERATIONS.key ? (
+              <OperationsSidebar role={admin.role} open={drawerOpen} />
+            ) : (
+              <ModuleSidebar module={visibleModule} open={drawerOpen} />
+            )}
             {drawerOpen && (
               <div
                 className="drawer-backdrop"
@@ -109,6 +126,9 @@ function Shell() {
           <BackBar />
           <Routes>
             <Route path="/" element={<Dashboard />} />
+
+            {/* The index Home's middle tile opens onto. */}
+            <Route path="/operations" element={<Operations />} />
 
             {/* Cross-module queue: one list of everything still waiting. */}
             <Route path="/requests" element={<Requests />} />
@@ -146,6 +166,8 @@ function Shell() {
             <Route path="/residents/:id" element={<ResidentDetail />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/feedback" element={<Feedback />} />
+            <Route path="/mess-counter" element={<MessDesk />} />
+            <Route path="/settings" element={<Settings />} />
 
             {/* Where the old combined Services module used to live. */}
             <Route path="/services" element={<Navigate to="/food" replace />} />
@@ -165,7 +187,8 @@ function Shell() {
 
 /**
  * One back link for the whole console, so every screen except Home has a way
- * out: detail screens go up to their list, module screens go to the launcher.
+ * out: detail screens go up to their list, areas go up to Operations, and the
+ * three modules Home shows go straight back to the launcher.
  */
 function BackBar() {
   const location = useLocation();
@@ -180,6 +203,10 @@ function BackBar() {
         label={`Back to ${module.name.toLowerCase()}`}
       />
     );
+  }
+
+  if (module?.opsGroup) {
+    return <BackLink to={OPERATIONS.path} label="Back to operations" />;
   }
 
   return <BackLink to="/" label="All modules" />;
@@ -395,6 +422,97 @@ function ModuleSidebar({
                   </Link>
                 );
               })}
+          </div>
+        ))}
+      </nav>
+
+      <div className="sidebar-foot">
+        {/* Areas came in through Operations, so that is the first way out. */}
+        {module.opsGroup && (
+          <Link
+            className="side-link hover-elevate active-elevate-2"
+            to={OPERATIONS.path}
+          >
+            <LayoutGrid size={16} strokeWidth={2} />
+            All of operations
+          </Link>
+        )}
+        <Link className="side-link hover-elevate active-elevate-2" to="/">
+          <Home size={16} strokeWidth={2} />
+          All modules
+        </Link>
+        <p className="scope">
+          <MapPin size={14} strokeWidth={2} />
+          {SCOPE}
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+/**
+ * Operations has areas where every other module has pages, so it gets its own
+ * sidebar: the same three groups the index shows, each row carrying the count
+ * that area's default page already computes.
+ */
+function OperationsSidebar({
+  role,
+  open,
+}: {
+  role: AdminRole;
+  open: boolean;
+}) {
+  const location = useLocation();
+  const { data } = useSummary();
+  const groups = operationsGroups(role);
+  const Icon = OPERATIONS.icon;
+
+  return (
+    <aside
+      className={`sidebar${open ? " open" : ""}`}
+      aria-label={OPERATIONS.name}
+    >
+      <div className="sidebar-title">
+        <span
+          className="tile-icon"
+          style={{
+            width: 32,
+            height: 32,
+            margin: 0,
+            background: `color-mix(in srgb, var(${OPERATIONS.tint}) 12%, transparent)`,
+          }}
+        >
+          <Icon size={18} strokeWidth={2} color={`var(${OPERATIONS.tint})`} />
+        </span>
+        <strong>{OPERATIONS.name}</strong>
+      </div>
+
+      <nav className="stack-sm" style={{ gap: 2 }}>
+        {groups.map(({ group, modules }) => (
+          <div key={group} className="stack-sm" style={{ gap: 2 }}>
+            <p className="sidebar-label">{OPS_GROUP_LABELS[group]}</p>
+
+            {modules.map((mod) => {
+              const active = location.pathname.startsWith(mod.path);
+              const count = data ? defaultCountOf(mod, data) : null;
+
+              return (
+                <Link
+                  key={mod.key}
+                  to={mod.path}
+                  className={`side-link hover-elevate active-elevate-2${
+                    active ? " active" : ""
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <mod.icon size={16} strokeWidth={2} />
+                  {mod.name}
+                  {count !== null && count > 0 && (
+                    <span className="side-count">{count}</span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </nav>

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
+import { DEFAULT_GEOFENCE } from "@proj/shared";
 import { db, pool } from "./client";
 import * as t from "./schema";
 import {
@@ -279,6 +280,7 @@ async function seed(): Promise<void> {
 
   await seedSecondResident();
   await seedAdmins();
+  await seedSiteSettings();
   await seedPendingRegistrations();
 
   console.log(`Seeded ${DEMO_RESIDENT_ID} (${DEMO_MOBILE}). OTP in dev is 123456.`);
@@ -339,6 +341,23 @@ async function seedSecondResident(): Promise<void> {
     snacks: true,
     dinner: true,
   });
+}
+
+/**
+ * Seeds the geofence only when it's missing — re-seeding demo data shouldn't
+ * quietly undo a fence someone moved in the console.
+ */
+async function seedSiteSettings(): Promise<void> {
+  await db
+    .insert(t.siteSettings)
+    .values({
+      id: "default",
+      geofenceLatitude: DEFAULT_GEOFENCE.latitude,
+      geofenceLongitude: DEFAULT_GEOFENCE.longitude,
+      geofenceRadiusMetres: DEFAULT_GEOFENCE.radiusMetres,
+      geofenceLabel: DEFAULT_GEOFENCE.locationLabel,
+    })
+    .onConflictDoNothing({ target: t.siteSettings.id });
 }
 
 /** Two reviewers so the "reviewed by" column shows something meaningful. */

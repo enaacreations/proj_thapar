@@ -785,24 +785,67 @@ export async function listMessEntries(
   }));
 }
 
+/**
+ * Records a plate handed over. Returns `recorded: false` when this resident was
+ * already served this meal today, so a second scan reports the first entry
+ * instead of either throwing at the counter or inflating the meal count.
+ */
 export async function createMessEntry(
   residentId: string,
   meal: MealType,
   method: AttendanceRecord["method"]
-): Promise<MessEntryRecord> {
+): Promise<{ entry: MessEntryRecord; recorded: boolean }> {
+  const date = isoDate(new Date());
   const id = await nextId("MSS");
-  const [row] = await db
+
+  const inserted = await db
     .insert(t.messEntries)
-    .values({ id, residentId, meal, method })
+    .values({ id, residentId, meal, method, date })
+    .onConflictDoNothing({
+      target: [t.messEntries.residentId, t.messEntries.meal, t.messEntries.date],
+    })
     .returning();
 
-  const r = row as typeof t.messEntries.$inferSelect;
-  return {
+  const toRecord = (r: typeof t.messEntries.$inferSelect): MessEntryRecord => ({
     id: r.id,
     meal: r.meal,
     method: r.method,
     enteredAt: iso(r.enteredAt),
-  };
+  });
+
+  if (inserted[0]) return { entry: toRecord(inserted[0]), recorded: true };
+
+  // Lost the race, or a genuine repeat — either way, report what's on file.
+  const [existing] = await db
+    .select()
+    .from(t.messEntries)
+    .where(
+      and(
+        eq(t.messEntries.residentId, residentId),
+        eq(t.messEntries.meal, meal),
+        eq(t.messEntries.date, date)
+      )
+    )
+    .limit(1);
+
+  if (!existing) {
+    // Nothing inserted and nothing on file means the conflict came from
+    // somewhere else entirely; surface it rather than inventing a record.
+    throw new Error(`Could not record a mess entry for ${residentId}.`);
+  }
+
+  return { entry: toRecord(existing), recorded: false };
+}
+
+/** The room a resident currently holds, or null if they have none yet. */
+export async function roomNumberOf(residentId: string): Promise<string | null> {
+  const [room] = await db
+    .select({ roomNumber: t.rooms.roomNumber })
+    .from(t.rooms)
+    .where(eq(t.rooms.residentId, residentId))
+    .limit(1);
+
+  return room?.roomNumber ?? null;
 }
 
 /* ------------------------------------------------------ combined + notifs */
