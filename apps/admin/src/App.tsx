@@ -16,7 +16,7 @@ import { useTheme } from "./theme";
 import { SummaryProvider, useSummary } from "./summary";
 import { SCOPE, moduleAt, modulesFor, type AppModule } from "./modules";
 import { CommandPalette } from "./palette";
-import { Loading, greeting, initials, useClock } from "./ui";
+import { BackLink, Loading, greeting, initials, useClock } from "./ui";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Registrations from "./pages/Registrations";
@@ -28,6 +28,8 @@ import ResidentDetail from "./pages/ResidentDetail";
 import Feedback from "./pages/Feedback";
 import Onboarding from "./pages/Onboarding";
 import OnboardingDetail from "./pages/OnboardingDetail";
+import Finance from "./pages/Finance";
+import Services from "./pages/Services";
 
 export default function App() {
   const { admin, restoring } = useAuth();
@@ -95,6 +97,7 @@ function Shell() {
         )}
 
         <main className="page">
+          <BackBar />
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/registrations" element={<Registrations />} />
@@ -105,7 +108,9 @@ function Shell() {
             <Route path="/requests/:kind/:id" element={<RequestDetail />} />
             <Route path="/residents" element={<Residents />} />
             <Route path="/residents/:id" element={<ResidentDetail />} />
-            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/finance" element={<Finance />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/feedback" element={<Feedback />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -118,6 +123,28 @@ function Shell() {
       />
     </div>
   );
+}
+
+/**
+ * One back link for the whole console, so every screen except Home has a way
+ * out: detail screens go up to their list, module screens go to the launcher.
+ */
+function BackBar() {
+  const location = useLocation();
+
+  if (location.pathname === "/") return null;
+
+  const module = moduleAt(location.pathname);
+  if (module && location.pathname !== module.path) {
+    return (
+      <BackLink
+        to={module.path}
+        label={`Back to ${module.name.toLowerCase()}`}
+      />
+    );
+  }
+
+  return <BackLink to="/" label="All modules" />;
 }
 
 function Topbar({

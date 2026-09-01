@@ -546,6 +546,24 @@ export async function dashboard(): Promise<AdminDashboard> {
 
   const avg = ratingRow[0]?.avg;
 
+  const today = isoDate(new Date());
+  const invoiceRows = await db
+    .select({
+      total: t.invoices.total,
+      amountPaid: t.invoices.amountPaid,
+      dueOn: t.invoices.dueOn,
+      status: t.invoices.status,
+    })
+    .from(t.invoices);
+
+  const open = invoiceRows.filter(
+    (i) => i.status !== "paid" && i.status !== "void"
+  );
+
+  const depositRows = await db
+    .select({ status: t.deposits.status })
+    .from(t.deposits);
+
   return {
     registrations,
     openRequests: byKind.reduce((sum, [, n]) => sum + n, 0),
@@ -553,5 +571,12 @@ export async function dashboard(): Promise<AdminDashboard> {
     residents: { total: residentTotal[0]?.n ?? 0, withRoom: withRoom[0]?.n ?? 0 },
     attendanceToday: attendanceToday[0]?.n ?? 0,
     averageRating: avg == null ? null : Math.round(Number(avg) * 10) / 10,
+    finance: {
+      outstanding: open.reduce((sum, i) => sum + (i.total - i.amountPaid), 0),
+      overdueInvoices: open.filter((i) => i.dueOn < today).length,
+      depositsHeld: depositRows.filter((d) => d.status === "held").length,
+      refundsPending: depositRows.filter((d) => d.status === "refund_initiated")
+        .length,
+    },
   };
 }

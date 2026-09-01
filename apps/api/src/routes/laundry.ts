@@ -1,9 +1,11 @@
 import { Router } from "express";
 import {
   CLOTHING_LABELS,
+  LAUNDRY_SERVICE_LABELS,
   type ClothingType,
   type CreateLaundryBody,
   type LaundryItem,
+  type LaundryService,
 } from "@proj/shared";
 import { HttpError } from "../http-error";
 import { residentIdOf } from "../auth";
@@ -59,8 +61,15 @@ laundryRouter.post("/", async (req, res) => {
     );
   }
 
+  const service =
+    typeof (body as { service?: unknown }).service === "string" &&
+    (body as { service: string }).service in LAUNDRY_SERVICE_LABELS
+      ? ((body as { service: string }).service as LaundryService)
+      : "wash_fold";
+
   const created = await db.createLaundry(residentIdOf(req), {
-    title: `${totalPieces} ${totalPieces === 1 ? "piece" : "pieces"}`,
+    title: `${totalPieces} ${totalPieces === 1 ? "piece" : "pieces"} · ${LAUNDRY_SERVICE_LABELS[service]}`,
+    service,
     items,
     totalPieces,
     pickupSlot: body.pickupSlot,

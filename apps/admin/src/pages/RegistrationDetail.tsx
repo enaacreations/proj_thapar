@@ -4,7 +4,6 @@ import { Eye, EyeOff } from "lucide-react";
 import type { RegistrationDetail as Detail } from "@proj/shared";
 import { api, messageOf } from "../api";
 import {
-  BackLink,
   ErrorState,
   Loading,
   Modal,
@@ -81,8 +80,6 @@ export default function RegistrationDetail() {
 
   return (
     <div className="stack animate-fade-up" style={{ gap: 20 }}>
-      <BackLink to="/registrations" label="Back to registrations" />
-
       {loading && !data ? (
         <Loading />
       ) : error || !data ? (

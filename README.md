@@ -180,6 +180,102 @@ And two are approximations rather than the full ask:
   ARKit/ARCore through a development build. The planner answers the same
   question — will my things fit — and works on every phone today.
 
+## Money: invoices, payments, deposits and splits
+
+**Invoices** — `Run billing` in the admin Money module creates one rent invoice
+per signed agreement for a month. It is **idempotent**: the unique index on
+`(resident, period)` means running it twice skips rather than double-charging.
+"Overdue" is derived from the due date at read time, so no nightly job is
+needed.
+
+**Paying** — UPI, card, net banking or auto-debit. Every payment goes through a
+`PaymentProvider` interface with one mock implementation. Orders start
+`pending` and are settled by a **webhook**, exactly as a real gateway behaves,
+so the async path is the one exercised in development.
+
+- **Idempotency keys** — retrying the same tap returns the original order
+  rather than charging twice.
+- **`settleOrder` is the single place an order becomes final**, and its status
+  filter makes it safe to replay: a webhook delivered twice returns
+  `applied: false` and the ledger is not credited again.
+- A successful payment credits the invoice **and** writes into the existing
+  `payment_entries` ledger, so the ledger stays the one record of what's been
+  paid however it was paid.
+
+**Auto-debit** — mandate lifecycle (pending → active → paused → revoked) with a
+per-debit ceiling the API enforces before it even reaches the gateway. Capped
+at day 28 so every month has the date.
+
+**Instalments** — split an invoice into 2, 3, 4 or 6 with a flat convenience
+fee. The last instalment absorbs the rounding so the parts sum to the total
+exactly.
+
+**Deposit** — amount held, itemised deductions with reasons, and a three-stage
+refund (held → in progress → refunded). Deductions **lock once the refund
+starts**, and the policy is shown to the resident up front.
+
+**Split bills** — split with roommates (listed first), each share tracked and
+payable in-app. The creator's own share is settled from the start, the
+remainder rounds to them so shares sum exactly, and the bill closes itself when
+the last share settles.
+
+**Documents** — invoices, rent receipts, an annual HRA statement and an account
+statement, rendered as print-ready HTML. They open in the system browser, which
+can't send a bearer token, so the app requests a **short-lived HMAC-signed URL**
+scoped to one document for one resident.
+
+### What needs a vendor
+
+- **No money moves.** The provider is a mock: it creates references and drives
+  the real webhook, but there is no PSP behind it. Going live means writing one
+  more `PaymentProvider` implementation (Razorpay/Stripe) and pointing
+  `provider` at it — routes, order lifecycle, webhook and reconciliation are
+  unchanged, because none of them know which provider is live.
+- **Auto-debit registers no real mandate.** UPI AutoPay or eNACH needs the same
+  PSP relationship.
+- **"Pay later" is a schedule, not credit.** The instalment plan tracks what's
+  owed and when; actually financing it needs a lending partner.
+- **Documents are HTML, not PDF.** Every browser can save them as PDF; native
+  PDF generation would slot in behind the same routes.
+
+## Daily living and hotel-style services
+
+**Mess menu** — now in the database, not code. Each meal has a serving window
+and dishes carrying dietary tags (veg, vegan, Jain, gluten-free, high-protein,
+low-carb). A resident sets their own filter and the menu **annotates rather
+than hides**: dishes that fit are marked, and each meal shows "3 of 5 fit your
+diet", so nobody is left guessing what else was served. Matching is strict AND
+— a Jain + gluten-free filter only matches dishes carrying both tags.
+
+The first time a day is requested it seeds from the old code rotation, so the
+menu is never empty. After that the admin editor is the only thing that
+changes it.
+
+**Meal ratings and vendor SLA** — residents rate a served meal 1–5, one rating
+per meal per day (re-rating updates rather than stacking, so the score can't be
+swung by one person). Admin sees a rolling 30-day average against a 3.5 target,
+a breach flag, a per-meal breakdown, and — the actionable part — **which dishes
+were on the plate when people rated badly**.
+
+**Guest meals** — book 1–6 guests a day ahead, priced per meal and charged to
+the next invoice.
+
+**Laundry** — weekly subscription tiers alongside one-off orders, four service
+types including dry-cleaning, and a real stage pipeline: scheduled → picked up
+→ washing → ready → out for delivery → delivered. Stages only move **forward**,
+and each one writes to the shared tracking timeline and notifies the resident,
+so "All requests" never disagrees with the tracker.
+
+**Housekeeping** — routine cleans (included) plus paid add-ons: deep cleaning,
+bathroom sanitisation, upholstery, pest control. Fixed slots so the team can be
+routed; a resident can't double-book a slot.
+
+**Amenities** — coworking pod, study room, gaming zone and rooftop BBQ, each
+with its own capacity, slot length and opening hours. Slots are generated from
+those hours; capacity is enforced in code (it varies per amenity) and a unique
+index stops the same person holding a slot twice. Taking the last place returns
+a 409 telling the next person to pick another.
+
 ## Database
 
 PostgreSQL via **Drizzle ORM**. Schema is in
@@ -315,6 +411,12 @@ tables onto those, and a decision about which side owns writes.
   phone's owner is present, not which resident they are.
 - **No AR or 3D tours, and no certified eSign or Aadhaar API** — see the
   vendor boundaries under Onboarding above.
+- **The mess vendor SLA is measured, not enforced.** The score and breach flag
+  are there; escalating a breach is still a conversation, not a workflow.
+- **Laundry subscriptions don't auto-create pickups.** The plan and next pickup
+  date are tracked, but a scheduled job to raise the weekly order doesn't exist.
+- **No payment gateway.** See the vendor note under Money — the flow is
+  complete but nothing is charged.
 - **No mess/menu admin.** The weekly menu, categories and laundry slots are
   still hardcoded in `apps/api/src/data/catalog.ts`. Editing them without a
   deploy means moving that reference data into the database first.

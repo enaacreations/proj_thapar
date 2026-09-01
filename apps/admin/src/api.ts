@@ -27,6 +27,17 @@ import {
   type KycState,
   type LeaseAgreement,
   type RoommateMatch,
+  ADMIN_FINANCE_ROUTES,
+  type AdminDepositRow,
+  type AdminInvoiceRow,
+  type AdminPaymentRow,
+  type DepositState,
+  type GenerateInvoicesResult,
+  ADMIN_LIVING_ROUTES,
+  type AdminBookingRow,
+  type AdminLaundryRow,
+  type LaundryStage,
+  type VendorSla,
 } from "@proj/shared";
 
 /** Vite proxies /api to the Express server in dev, so this stays same-origin. */
@@ -212,6 +223,69 @@ export const api = {
 
   compatibility: (id: string) =>
     request<RoommateMatch[]>(ADMIN_ONBOARDING_ROUTES.compatibility(id)),
+
+  /* finance */
+  financeInvoices: () =>
+    request<AdminInvoiceRow[]>(ADMIN_FINANCE_ROUTES.invoices),
+
+  generateInvoices: (periodFrom: string) =>
+    request<GenerateInvoicesResult>(ADMIN_FINANCE_ROUTES.generateInvoices, {
+      method: "POST",
+      body: { periodFrom },
+    }),
+
+  voidInvoice: (id: string) =>
+    request<AdminInvoiceRow>(ADMIN_FINANCE_ROUTES.voidInvoice(id), {
+      method: "POST",
+    }),
+
+  financePayments: () =>
+    request<AdminPaymentRow[]>(ADMIN_FINANCE_ROUTES.payments),
+
+  financeDeposits: () =>
+    request<AdminDepositRow[]>(ADMIN_FINANCE_ROUTES.deposits),
+
+  deposit: (residentId: string) =>
+    request<DepositState>(ADMIN_FINANCE_ROUTES.deposit(residentId)),
+
+  addDeduction: (
+    residentId: string,
+    body: { amount: number; reason: string }
+  ) =>
+    request<DepositState>(ADMIN_FINANCE_ROUTES.depositDeduction(residentId), {
+      method: "POST",
+      body,
+    }),
+
+  refundDeposit: (residentId: string, reference?: string) =>
+    request<DepositState>(ADMIN_FINANCE_ROUTES.depositRefund(residentId), {
+      method: "POST",
+      body: { reference },
+    }),
+
+  /* daily living */
+  messSla: () => request<VendorSla>(ADMIN_LIVING_ROUTES.sla),
+  adminGuestMeals: () =>
+    request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.guestMeals),
+
+  laundryBoard: () =>
+    request<AdminLaundryRow[]>(ADMIN_LIVING_ROUTES.laundryBoard),
+  setLaundryStage: (id: string, stage: LaundryStage, note?: string) =>
+    request<{ ok: boolean }>(ADMIN_LIVING_ROUTES.laundryStage(id), {
+      method: "POST",
+      body: { stage, note },
+    }),
+
+  housekeepingBookings: () =>
+    request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.housekeepingBookings),
+  setHousekeepingStatus: (id: string, status: "in_progress" | "done") =>
+    request<{ ok: boolean }>(ADMIN_LIVING_ROUTES.housekeepingStatus(id), {
+      method: "POST",
+      body: { status },
+    }),
+
+  amenityBookings: () =>
+    request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.amenityBookings),
 };
 
 export function messageOf(err: unknown): string {

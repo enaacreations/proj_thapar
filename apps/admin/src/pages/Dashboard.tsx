@@ -92,15 +92,17 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="field search-field">
-        <label htmlFor="module-search">Find a module</label>
-        <Search size={18} strokeWidth={2} className="search-icon" />
-        <input
-          id="module-search"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Registrations, requests, feedback…"
-        />
+      <div className="section-head">
+        <h2>Your modules</h2>
+        <div className="search-field">
+          <Search size={18} strokeWidth={2} className="search-icon" />
+          <input
+            value={filter}
+            aria-label="Find a module"
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Find a module…"
+          />
+        </div>
       </div>
 
       {shown.length === 0 ? (
