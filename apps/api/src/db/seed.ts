@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "./client";
 import * as t from "./schema";
-import { DEMO_MOBILE, DEMO_RESIDENT_ID, isoDate } from "../data/db";
+import {
+  DEMO_MOBILE,
+  DEMO_MOBILE_2,
+  DEMO_RESIDENT_ID,
+  DEMO_RESIDENT_ID_2,
+  isoDate,
+} from "../data/db";
 import { hashPassword } from "../admin-auth";
 
 /**
@@ -39,6 +45,7 @@ async function seed(): Promise<void> {
 
   // Cascade deletes rooms, payments, requests, attendance, notifications.
   await db.delete(t.residents).where(eq(t.residents.id, DEMO_RESIDENT_ID));
+  await db.delete(t.residents).where(eq(t.residents.id, DEMO_RESIDENT_ID_2));
   await clearSeededRegistrations();
   await purgeOrphanTrackingEvents();
 
@@ -270,11 +277,68 @@ async function seed(): Promise<void> {
     },
   ]);
 
+  await seedSecondResident();
   await seedAdmins();
   await seedPendingRegistrations();
 
   console.log(`Seeded ${DEMO_RESIDENT_ID} (${DEMO_MOBILE}). OTP in dev is 123456.`);
+  console.log(`Seeded ${DEMO_RESIDENT_ID_2} (${DEMO_MOBILE_2}).`);
   console.log("Admin sign-in: ops@thapar.test / thapar123");
+}
+
+/** Second login-able resident — same OTP (123456), no request history. */
+async function seedSecondResident(): Promise<void> {
+  await db.insert(t.residents).values({
+    id: DEMO_RESIDENT_ID_2,
+    fullName: "Riya Kapoor",
+    dob: "2005-06-11",
+    gender: "female",
+    kycType: "aadhaar",
+    kycNumber: "112233445566",
+    mobile: DEMO_MOBILE_2,
+    accountStatus: "approved",
+    mpin: null,
+    biometricEnabled: false,
+  });
+
+  await db.insert(t.rooms).values({
+    residentId: DEMO_RESIDENT_ID_2,
+    roomNumber: "714",
+    floor: "7th floor",
+    wing: "A wing",
+    buildingName: "Thapar Block A",
+    propertyName: "Thapar",
+    propertyAddress: "Thapar Institute Campus, Bhadson Road, Patiala 147004",
+    roomType: "Twin sharing AC",
+    occupancy: "2 of 2 beds occupied",
+  });
+
+  await db.insert(t.paymentPlans).values({
+    residentId: DEMO_RESIDENT_ID_2,
+    plan: "6 monthly",
+    paidUpTo: "2027-02-28",
+    nextDueOn: "2027-03-01",
+    nextDueAmount: 110000,
+  });
+
+  await db.insert(t.paymentEntries).values({
+    id: "PAY-2001",
+    residentId: DEMO_RESIDENT_ID_2,
+    paidOn: "2026-08-28",
+    amount: 110000,
+    mode: "upi",
+    periodFrom: "2026-09-01",
+    periodTo: "2027-02-28",
+    receiptNo: "RCPT/2026/2001",
+  });
+
+  await db.insert(t.foodPreferences).values({
+    residentId: DEMO_RESIDENT_ID_2,
+    breakfast: true,
+    lunch: true,
+    snacks: true,
+    dinner: true,
+  });
 }
 
 /** Two reviewers so the "reviewed by" column shows something meaningful. */

@@ -32,7 +32,7 @@ export function AppHeader({
         {
           backgroundColor: c.surface,
           borderBottomColor: c.border,
-          paddingTop: insets.top + space.sm,
+          paddingTop: insets.top + space.md,
         },
       ]}
     >

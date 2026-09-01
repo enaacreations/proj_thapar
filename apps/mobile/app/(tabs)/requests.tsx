@@ -35,7 +35,7 @@ export default function RequestsScreen() {
 
   return (
     <Screen
-      contentStyle={{ paddingTop: insets.top + space.md }}
+      contentStyle={{ paddingTop: insets.top + space.xl }}
       refreshing={loading}
       onRefresh={() => void reload()}
     >

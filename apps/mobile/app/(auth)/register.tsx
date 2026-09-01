@@ -12,6 +12,7 @@ import { Button } from "../../src/components/Button";
 import { Calendar } from "../../src/components/Calendar";
 import { Segmented } from "../../src/components/Controls";
 import { Field, Input } from "../../src/components/Input";
+import { PhoneInput } from "../../src/components/PhoneInput";
 import { Screen } from "../../src/components/Screen";
 import { Text } from "../../src/components/Text";
 import { formatDate, toIsoDate } from "../../src/lib/format";
@@ -241,6 +242,7 @@ export default function Register() {
                 />
               </Field>
               <Input
+                key={kycType}
                 label={kycType === "aadhaar" ? "Aadhaar number" : "PAN number"}
                 value={kycNumber}
                 onChangeText={(text) =>
@@ -252,9 +254,11 @@ export default function Register() {
                 }
                 placeholder={kycType === "aadhaar" ? "12 digits" : "ABCDE1234F"}
                 keyboardType={
-                  kycType === "aadhaar" ? "number-pad" : "default"
+                  kycType === "aadhaar" ? "number-pad" : "ascii-capable"
                 }
                 autoCapitalize="characters"
+                autoComplete="off"
+                autoCorrect={false}
                 error={error}
               />
             </View>
@@ -266,13 +270,9 @@ export default function Register() {
               <Text variant="body" tone="muted">
                 You'll sign in with this number, so use one you'll keep.
               </Text>
-              <Input
+              <PhoneInput
                 value={mobile}
-                onChangeText={(text) =>
-                  setMobile(text.replace(/\D/g, "").slice(0, 10))
-                }
-                placeholder="10-digit number"
-                keyboardType="number-pad"
+                onChangeText={setMobile}
                 autoFocus
                 error={error}
               />

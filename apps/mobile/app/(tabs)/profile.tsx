@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Eye, EyeOff, LogOut, Moon, Smartphone, Sun } from "lucide-react-native";
 import type { ResidentProfile } from "@proj/shared";
 import { useTheme, type ThemePreference } from "../../src/theme/ThemeProvider";
-import { radius, space, withAlpha } from "../../src/theme/tokens";
+import { space } from "../../src/theme/tokens";
 import { api } from "../../src/api/client";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useAsync } from "../../src/lib/useAsync";
 import { formatDate } from "../../src/lib/format";
+import { capturePhoto } from "../../src/lib/photos";
+import { Avatar } from "../../src/components/Avatar";
 import { Button } from "../../src/components/Button";
 import { Card } from "../../src/components/Card";
 import { KeyValue, Segmented } from "../../src/components/Controls";
@@ -61,9 +63,24 @@ export default function ProfileScreen() {
       ? data.kycNumber.full
       : (data?.kycNumber.masked ?? "");
 
+  const takePhoto = async () => {
+    const result = await capturePhoto();
+    if (result.problem) {
+      toast.show(result.problem, "warning");
+      return;
+    }
+    const uri = result.uris[0];
+    if (!uri) return;
+    try {
+      setData(await api.updateProfilePhoto(uri));
+    } catch {
+      toast.error("Couldn't save that photo. Try again.");
+    }
+  };
+
   return (
     <Screen
-      contentStyle={{ paddingTop: insets.top + space.md }}
+      contentStyle={{ paddingTop: insets.top + space.xl }}
       refreshing={loading}
       onRefresh={() => void reload()}
     >
@@ -80,22 +97,22 @@ export default function ProfileScreen() {
         <>
           <Card>
             <View style={styles.identity}>
-              <View
-                style={[
-                  styles.avatar,
-                  { backgroundColor: withAlpha(c.accent, 0.12) },
-                ]}
-              >
-                <Text variant="section" tone="accent">
-                  {initials(data.fullName)}
-                </Text>
-              </View>
+              <Avatar
+                name={data.fullName}
+                photoUrl={data.photoUrl}
+                size={64}
+                editable
+                onPress={() => void takePhoto()}
+              />
               <View style={styles.identityText}>
                 <Text variant="section" numberOfLines={1}>
                   {data.fullName}
                 </Text>
                 <Text variant="mono" tone="muted">
                   {data.id}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {data.photoUrl ? "Tap photo to change" : "Tap to add a photo"}
                 </Text>
               </View>
             </View>
@@ -239,25 +256,11 @@ function mergeUnmasked(
     : { ...current, kycNumber: fresh.kycNumber };
 }
 
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-
 const capitalise = (value: string) =>
   value.charAt(0).toUpperCase() + value.slice(1);
 
 const styles = StyleSheet.create({
   identity: { flexDirection: "row", alignItems: "center", gap: space.md },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   identityText: { flex: 1, gap: 2 },
   details: { gap: space.md },
   themeHint: { flexDirection: "row", alignItems: "center", gap: 6 },

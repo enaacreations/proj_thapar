@@ -10,7 +10,8 @@ import { useAuth } from "../../src/auth/AuthProvider";
 import { messageOf } from "../../src/lib/useAsync";
 import { AppHeader } from "../../src/components/AppHeader";
 import { Button } from "../../src/components/Button";
-import { Input } from "../../src/components/Input";
+import { OtpInput } from "../../src/components/OtpInput";
+import { PhoneInput } from "../../src/components/PhoneInput";
 import { PinPad } from "../../src/components/PinPad";
 import { Screen } from "../../src/components/Screen";
 import { Text } from "../../src/components/Text";
@@ -170,13 +171,9 @@ export default function Login() {
               <Text variant="body" tone="muted">
                 We'll text you a 6-digit code to confirm it's you.
               </Text>
-              <Input
+              <PhoneInput
                 value={mobile}
-                onChangeText={(text) =>
-                  setMobile(text.replace(/\D/g, "").slice(0, 10))
-                }
-                placeholder="10-digit number"
-                keyboardType="number-pad"
+                onChangeText={setMobile}
                 autoFocus
                 error={error}
               />
@@ -195,14 +192,9 @@ export default function Login() {
             }
           >
             <View style={styles.block}>
-              <Input
-                label="6-digit OTP"
+              <OtpInput
                 value={otp}
-                onChangeText={(text) =>
-                  setOtp(text.replace(/\D/g, "").slice(0, 6))
-                }
-                placeholder="123456"
-                keyboardType="number-pad"
+                onChangeText={setOtp}
                 autoFocus
                 error={error}
               />

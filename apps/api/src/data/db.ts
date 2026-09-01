@@ -33,6 +33,8 @@ import * as t from "../db/schema";
 
 export const DEMO_RESIDENT_ID = "RES-2024-0912";
 export const DEMO_MOBILE = "9876543210";
+export const DEMO_RESIDENT_ID_2 = "RES-2026-2001";
+export const DEMO_MOBILE_2 = "9867510570";
 
 /* ----------------------------------------------------------------- helpers */
 
@@ -111,6 +113,13 @@ export async function setMpin(
     .where(eq(t.residents.id, id));
 }
 
+export async function setPhotoUrl(id: string, photoUrl: string): Promise<void> {
+  await db
+    .update(t.residents)
+    .set({ photoUrl })
+    .where(eq(t.residents.id, id));
+}
+
 export function toProfile(
   resident: ResidentRecord,
   unmask: { dob?: boolean; kyc?: boolean } = {}
@@ -139,7 +148,7 @@ export function toProfile(
       ...(unmask.kyc ? { full: resident.kycNumber } : {}),
     },
     mobile: resident.mobile,
-    photoUrl: null,
+    photoUrl: resident.photoUrl ?? null,
     accountStatus: resident.accountStatus,
   };
 }

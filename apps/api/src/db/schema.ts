@@ -44,6 +44,7 @@ export const residents = pgTable(
     kycType: text("kyc_type").$type<"pan" | "aadhaar">().notNull(),
     kycNumber: text("kyc_number").notNull(),
     mobile: text("mobile").notNull(),
+    photoUrl: text("photo_url"),
     accountStatus: text("account_status")
       .$type<ResidentAccountStatus>()
       .notNull()
