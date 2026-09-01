@@ -13,7 +13,9 @@ if (!container) throw new Error("Missing #root element.");
 createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
-      <BrowserRouter>
+      {/* Served from /admin/ in production, / in dev — Vite's BASE_URL is
+          the one value that knows which, so the router follows it. */}
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <AuthProvider>
           <ToastProvider>
             <App />
