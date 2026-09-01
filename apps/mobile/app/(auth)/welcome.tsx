@@ -1,10 +1,10 @@
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../src/theme/ThemeProvider";
-import { gradient, layout, space } from "../../src/theme/tokens";
+import { layout, space } from "../../src/theme/tokens";
 import { useAuth } from "../../src/auth/AuthProvider";
+import { BrandMark } from "../../src/components/BrandMark";
 import { Button } from "../../src/components/Button";
 import { Text } from "../../src/components/Text";
 
@@ -26,14 +26,7 @@ export default function Welcome() {
       ]}
     >
       <View style={styles.hero}>
-        <LinearGradient
-          colors={[...gradient]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.mark}
-        >
-          <Text style={styles.markLetter}>U</Text>
-        </LinearGradient>
+        <BrandMark size={96} />
 
         <View style={styles.copy}>
           <Text variant="title" style={styles.headline}>
@@ -73,19 +66,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   hero: { flex: 1, justifyContent: "center", alignItems: "center", gap: space.xl },
-  mark: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  markLetter: {
-    color: "#FFFFFF",
-    fontFamily: "HankenGrotesk_700Bold",
-    fontSize: 44,
-    lineHeight: 52,
-  },
   copy: { gap: space.sm, paddingHorizontal: space.md },
   headline: { textAlign: "center" },
   actions: { gap: space.md },
