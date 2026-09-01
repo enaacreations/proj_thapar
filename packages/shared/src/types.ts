@@ -438,6 +438,7 @@ export const API_ROUTES = {
 
   profile: "/api/me/profile",
   profileUnmask: (field: "dob" | "kyc") => `/api/me/profile/unmask/${field}`,
+  profilePhoto: "/api/me/profile/photo",
   room: "/api/me/room",
   payments: "/api/me/payments",
 

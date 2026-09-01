@@ -56,14 +56,22 @@ const API_PORT = 4000;
  *   3. localhost (simulator / web), with the Android emulator's host alias.
  */
 function resolveBaseUrl(): string {
-  const configured =
-    process.env.EXPO_PUBLIC_API_URL ??
-    (Constants.expoConfig?.extra?.apiUrl as string | undefined);
-  if (configured) return configured.replace(/\/$/, "");
+  const raw =
+    process.env.EXPO_PUBLIC_API_URL ?? Constants.expoConfig?.extra?.apiUrl;
+  // app.json had `apiUrl: null` — truthy checks aren't enough; only strings
+  // have `.replace`, and calling it on null/objects crashes Expo Go.
+  if (typeof raw === "string" && raw.length > 0) {
+    return raw.replace(/\/$/, "");
+  }
 
   const hostUri =
-    Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.debuggerHost;
-  const host = hostUri?.split(":")[0];
+    Constants.expoConfig?.hostUri ??
+    Constants.expoGoConfig?.debuggerHost ??
+    Constants.linkingUri;
+  const host = hostUri
+    ?.replace(/^[a-z]+:\/\//i, "")
+    .split("/")[0]
+    ?.split(":")[0];
   if (host && host !== "localhost" && host !== "127.0.0.1") {
     return `http://${host}:${API_PORT}`;
   }
@@ -149,6 +157,8 @@ export const api = {
   profile: () => request<ResidentProfile>(API_ROUTES.profile),
   unmask: (field: "dob" | "kyc") =>
     post<ResidentProfile>(API_ROUTES.profileUnmask(field)),
+  updateProfilePhoto: (uri: string) =>
+    post<ResidentProfile>(API_ROUTES.profilePhoto, { uri }),
   room: () => request<RoomDetails>(API_ROUTES.room),
   payments: () => request<PaymentSummary>(API_ROUTES.payments),
 

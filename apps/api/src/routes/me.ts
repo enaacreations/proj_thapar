@@ -28,6 +28,15 @@ meRouter.post("/profile/unmask/:field", async (req, res) => {
   res.json(await profileOf(req, { [field]: true }));
 });
 
+meRouter.post("/profile/photo", async (req, res) => {
+  const uri = req.body?.uri;
+  if (typeof uri !== "string" || uri.trim().length === 0) {
+    throw HttpError.badRequest("Take a photo first.");
+  }
+  await db.setPhotoUrl(residentIdOf(req), uri.trim());
+  res.json(await profileOf(req));
+});
+
 meRouter.get("/room", async (req, res) => {
   const room = await db.getRoom(residentIdOf(req));
   if (!room) {

@@ -4,10 +4,10 @@ import { StyleSheet, Text, View, type ColorValue } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Bell,
   ClipboardList,
   Home,
   User,
+  UtensilsCrossed,
   type LucideProps,
 } from "lucide-react-native";
 import { useTheme } from "../../src/theme/ThemeProvider";
@@ -21,8 +21,8 @@ const BAR_HEIGHT = 64;
 
 const TABS = [
   { name: "index", label: "Home", icon: Home },
+  { name: "food", label: "Food", icon: UtensilsCrossed },
   { name: "requests", label: "Requests", icon: ClipboardList },
-  { name: "notifications", label: "Alerts", icon: Bell },
   { name: "profile", label: "Profile", icon: User },
 ] as const;
 
@@ -69,6 +69,14 @@ export default function TabsLayout() {
           }}
         />
       ))}
+      {/* Reachable from the Home bell; not shown in the tab bar. */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
+          title: "Alerts",
+        }}
+      />
     </Tabs>
   );
 }
