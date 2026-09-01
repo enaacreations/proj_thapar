@@ -173,6 +173,12 @@ export interface AdminDashboard {
   residents: { total: number; withRoom: number };
   attendanceToday: number;
   averageRating: number | null;
+  finance: {
+    outstanding: number;
+    overdueInvoices: number;
+    depositsHeld: number;
+    refundsPending: number;
+  };
 }
 
 export const ADMIN_ROUTES = {

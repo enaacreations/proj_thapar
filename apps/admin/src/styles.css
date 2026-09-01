@@ -857,8 +857,13 @@ select:focus-visible {
   gap: 2px;
 }
 
+/* Wraps the input alone — if it wrapped the whole .field the icon would
+   centre against the label too, and sit high. */
 .search-field {
   position: relative;
+  display: block;
+  width: 100%;
+  max-width: 420px;
 }
 
 .search-field input {
@@ -872,6 +877,18 @@ select:focus-visible {
   transform: translateY(-50%);
   pointer-events: none;
   color: var(--muted);
+}
+
+/* Filter sat beside a section heading rather than stacked over the grid. */
+.section-head .search-field {
+  max-width: 280px;
+}
+
+@media (max-width: 640px) {
+  .search-field,
+  .section-head .search-field {
+    max-width: none;
+  }
 }
 
 .error-text {

@@ -28,6 +28,7 @@ import ResidentDetail from "./pages/ResidentDetail";
 import Feedback from "./pages/Feedback";
 import Onboarding from "./pages/Onboarding";
 import OnboardingDetail from "./pages/OnboardingDetail";
+import Finance from "./pages/Finance";
 
 export default function App() {
   const { admin, restoring } = useAuth();
@@ -105,7 +106,8 @@ function Shell() {
             <Route path="/requests/:kind/:id" element={<RequestDetail />} />
             <Route path="/residents" element={<Residents />} />
             <Route path="/residents/:id" element={<ResidentDetail />} />
-            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/finance" element={<Finance />} />
+          <Route path="/feedback" element={<Feedback />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

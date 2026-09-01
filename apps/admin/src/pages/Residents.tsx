@@ -81,15 +81,17 @@ export default function Residents() {
     <div className="stack animate-fade-up" style={{ gap: 20 }}>
       <PageHeader title={copy.title} description={copy.lede} />
 
-      <div className="field search-field">
+      <div className="field">
         <label htmlFor="search">Search</label>
-        <Search size={18} strokeWidth={2} className="search-icon" />
-        <input
-          id="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Name, mobile number or resident ID"
-        />
+        <div className="search-field">
+          <Search size={18} strokeWidth={2} className="search-icon" />
+          <input
+            id="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name, mobile number or resident ID"
+          />
+        </div>
       </div>
 
       {loading && !shown ? (

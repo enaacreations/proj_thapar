@@ -27,6 +27,12 @@ import {
   type KycState,
   type LeaseAgreement,
   type RoommateMatch,
+  ADMIN_FINANCE_ROUTES,
+  type AdminDepositRow,
+  type AdminInvoiceRow,
+  type AdminPaymentRow,
+  type DepositState,
+  type GenerateInvoicesResult,
 } from "@proj/shared";
 
 /** Vite proxies /api to the Express server in dev, so this stays same-origin. */
@@ -212,6 +218,45 @@ export const api = {
 
   compatibility: (id: string) =>
     request<RoommateMatch[]>(ADMIN_ONBOARDING_ROUTES.compatibility(id)),
+
+  /* finance */
+  financeInvoices: () =>
+    request<AdminInvoiceRow[]>(ADMIN_FINANCE_ROUTES.invoices),
+
+  generateInvoices: (periodFrom: string) =>
+    request<GenerateInvoicesResult>(ADMIN_FINANCE_ROUTES.generateInvoices, {
+      method: "POST",
+      body: { periodFrom },
+    }),
+
+  voidInvoice: (id: string) =>
+    request<AdminInvoiceRow>(ADMIN_FINANCE_ROUTES.voidInvoice(id), {
+      method: "POST",
+    }),
+
+  financePayments: () =>
+    request<AdminPaymentRow[]>(ADMIN_FINANCE_ROUTES.payments),
+
+  financeDeposits: () =>
+    request<AdminDepositRow[]>(ADMIN_FINANCE_ROUTES.deposits),
+
+  deposit: (residentId: string) =>
+    request<DepositState>(ADMIN_FINANCE_ROUTES.deposit(residentId)),
+
+  addDeduction: (
+    residentId: string,
+    body: { amount: number; reason: string }
+  ) =>
+    request<DepositState>(ADMIN_FINANCE_ROUTES.depositDeduction(residentId), {
+      method: "POST",
+      body,
+    }),
+
+  refundDeposit: (residentId: string, reference?: string) =>
+    request<DepositState>(ADMIN_FINANCE_ROUTES.depositRefund(residentId), {
+      method: "POST",
+      body: { reference },
+    }),
 };
 
 export function messageOf(err: unknown): string {

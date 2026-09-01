@@ -44,6 +44,22 @@ import {
   type RoommateProfile,
   type RoommateProfileBody,
   type TourSpace,
+  FINANCE_ROUTES,
+  type CreateSplitBillBody,
+  type DepositState,
+  type DocumentKind,
+  type DocumentRef,
+  type DocumentTokenResponse,
+  type FinanceOverview,
+  type InstalmentPlan,
+  type InstalmentQuote,
+  type Invoice,
+  type Mandate,
+  type PaymentMethod,
+  type PaymentOrder,
+  type SplitBill,
+  type SplitCandidate,
+  type SplitSummary,
 } from "@proj/shared";
 
 const API_PORT = 4000;
@@ -268,6 +284,49 @@ export const api = {
   submitInventory: () => post<MoveInState>(ONBOARDING_ROUTES.inventorySubmit),
 
   tours: () => request<TourSpace[]>(ONBOARDING_ROUTES.tours),
+
+  /* finance */
+  financeOverview: () => request<FinanceOverview>(FINANCE_ROUTES.overview),
+  invoices: () => request<Invoice[]>(FINANCE_ROUTES.invoices),
+  invoice: (id: string) => request<Invoice>(FINANCE_ROUTES.invoice(id)),
+
+  startPayment: (body: {
+    invoiceId?: string;
+    splitShareId?: string;
+    amount: number;
+    method: PaymentMethod;
+    idempotencyKey: string;
+  }) => post<PaymentOrder>(FINANCE_ROUTES.startPayment, body),
+  paymentStatus: (id: string) =>
+    request<PaymentOrder>(FINANCE_ROUTES.payment(id)),
+  paymentHistory: () => request<PaymentOrder[]>(FINANCE_ROUTES.payments),
+
+  mandate: () => request<Mandate | null>(FINANCE_ROUTES.mandate),
+  createMandate: (body: { maxAmount: number; dayOfMonth: number }) =>
+    post<Mandate>(FINANCE_ROUTES.mandate, body),
+  setMandatePaused: (resume: boolean) =>
+    post<Mandate>(FINANCE_ROUTES.mandatePause, { resume }),
+  cancelMandate: () =>
+    request<void>(FINANCE_ROUTES.mandate, { method: "DELETE" }),
+
+  instalmentQuote: (invoiceId: string, count: number) =>
+    request<InstalmentQuote>(FINANCE_ROUTES.instalmentQuote(invoiceId, count)),
+  createInstalmentPlan: (invoiceId: string, count: number) =>
+    post<InstalmentPlan>(FINANCE_ROUTES.instalmentPlans, { invoiceId, count }),
+
+  deposit: () => request<DepositState>(FINANCE_ROUTES.deposit),
+
+  splits: () => request<SplitSummary>(FINANCE_ROUTES.splits),
+  splitCandidates: () =>
+    request<SplitCandidate[]>(FINANCE_ROUTES.splitCandidates),
+  createSplit: (body: CreateSplitBillBody) =>
+    post<SplitBill>(FINANCE_ROUTES.splits, body),
+  deleteSplit: (id: string) =>
+    request<void>(FINANCE_ROUTES.split(id), { method: "DELETE" }),
+
+  documents: () => request<DocumentRef[]>(FINANCE_ROUTES.documents),
+  documentUrl: (kind: DocumentKind, id: string) =>
+    post<DocumentTokenResponse>(FINANCE_ROUTES.documentToken, { kind, id }),
   roomPlan: () => request<RoomPlan>(ONBOARDING_ROUTES.roomPlan),
   layoutPieces: () => request<LayoutPiece[]>(ONBOARDING_ROUTES.layoutPieces),
 };

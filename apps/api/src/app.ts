@@ -22,6 +22,11 @@ import { attendanceRouter } from "./routes/attendance";
 import { feedbackRouter } from "./routes/feedback";
 import { messRouter, notificationsRouter, requestsRouter } from "./routes/misc";
 import { onboardingRouter } from "./routes/onboarding";
+import { financeRouter } from "./routes/finance";
+import {
+  documentsRouter,
+  paymentsPublicRouter,
+} from "./routes/payments-public";
 
 const notFound: RequestHandler = (req) => {
   throw HttpError.notFound(`Cannot ${req.method} ${req.path}`);
@@ -72,6 +77,13 @@ export function createApp(): Express {
   app.use("/api/requests", requireAuth, requestsRouter);
   app.use("/api/notifications", requireAuth, notificationsRouter);
   app.use("/api/onboarding", requireAuth, onboardingRouter);
+  app.use("/api/finance", requireAuth, financeRouter);
+
+  // Gateway callbacks and document pages can't carry a resident token: the
+  // webhook is server-to-server and documents open in the system browser,
+  // so each authenticates itself (signature / signed URL).
+  app.use("/api/payments", paymentsPublicRouter);
+  app.use("/api/documents", documentsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

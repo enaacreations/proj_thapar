@@ -1,5 +1,6 @@
 import {
   ClipboardList,
+  Wallet,
   Star,
   UserCheck,
   UserPlus,
@@ -130,6 +131,32 @@ export const MODULES: AppModule[] = [
       const without = d.residents.total - d.residents.withRoom;
       return without > 0 ? `${without} without a room` : null;
     },
+  },
+  {
+    key: "finance",
+    name: "Money",
+    description: "Invoices, payments and deposits",
+    path: "/finance",
+    icon: Wallet,
+    tint: "--success",
+    roles: ALL_ROLES,
+    pages: [
+      {
+        query: "",
+        label: "Invoices and dues",
+        count: (d) => d.finance.overdueInvoices || null,
+      },
+      { query: "?view=payments", label: "Payments received" },
+      {
+        query: "?view=deposits",
+        label: "Deposits",
+        count: (d) => d.finance.refundsPending || null,
+      },
+    ],
+    nudge: (d) =>
+      d.finance.outstanding
+        ? `₹${d.finance.outstanding.toLocaleString("en-IN")} outstanding`
+        : null,
   },
   {
     key: "feedback",
