@@ -44,8 +44,6 @@ export default function FeedbackList() {
             icon={Star}
             title="Tell us how it's going"
             description="Rate the mess, your room, laundry or facilities. It's the fastest way to get things improved."
-            actionLabel="Give feedback"
-            onAction={() => router.push("/feedback/new")}
           />
         ) : (
           data.map((entry) => (

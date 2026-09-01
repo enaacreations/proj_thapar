@@ -39,8 +39,6 @@ export default function ComplaintsList() {
             icon={MessageSquareWarning}
             title="No complaints raised"
             description="If something isn't right — food, cleaning, security, staff — raise it here and track what happens."
-            actionLabel="Raise a complaint"
-            onAction={() => router.push("/complaints/new")}
           />
         ) : (
           data.map((complaint) => (

@@ -36,8 +36,6 @@ export default function LaundryList() {
             icon={Shirt}
             title="No pickups yet"
             description="Count your clothes, take a photo of the bag, and pick a slot. You can track every bag from here."
-            actionLabel="Book a pickup"
-            onAction={() => router.push("/laundry/new")}
           />
         ) : (
           data.map((request) => (

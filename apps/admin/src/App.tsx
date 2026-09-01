@@ -14,7 +14,14 @@ import { ADMIN_ROLE_LABELS } from "@proj/shared";
 import { useAuth } from "./auth";
 import { useTheme } from "./theme";
 import { SummaryProvider, useSummary } from "./summary";
-import { SCOPE, moduleAt, modulesFor, type AppModule } from "./modules";
+import {
+  GROUP_LABELS,
+  SCOPE,
+  groupsOf,
+  moduleAt,
+  modulesFor,
+  type AppModule,
+} from "./modules";
 import { CommandPalette } from "./palette";
 import { BackLink, Loading, greeting, initials, useClock } from "./ui";
 import Login from "./pages/Login";
@@ -29,7 +36,9 @@ import Feedback from "./pages/Feedback";
 import Onboarding from "./pages/Onboarding";
 import OnboardingDetail from "./pages/OnboardingDetail";
 import Finance from "./pages/Finance";
-import Services from "./pages/Services";
+import Food from "./pages/Food";
+import Laundry from "./pages/Laundry";
+import Bookings from "./pages/Bookings";
 
 export default function App() {
   const { admin, restoring } = useAuth();
@@ -100,17 +109,46 @@ function Shell() {
           <BackBar />
           <Routes>
             <Route path="/" element={<Dashboard />} />
+
+            {/* Cross-module queue: one list of everything still waiting. */}
+            <Route path="/requests" element={<Requests />} />
+            <Route path="/requests/:kind/:id" element={<RequestDetail />} />
+
             <Route path="/registrations" element={<Registrations />} />
             <Route path="/registrations/:id" element={<RegistrationDetail />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/onboarding/:id" element={<OnboardingDetail />} />
-            <Route path="/requests" element={<Requests />} />
-            <Route path="/requests/:kind/:id" element={<RequestDetail />} />
+
+            {/* One module per kind of request, each owning its own details. */}
+            <Route path="/maintenance" element={<Requests kind="maintenance" />} />
+            <Route
+              path="/maintenance/:id"
+              element={<RequestDetail kind="maintenance" />}
+            />
+            <Route path="/laundry" element={<Laundry />} />
+            <Route path="/laundry/:id" element={<RequestDetail kind="laundry" />} />
+            <Route path="/complaints" element={<Requests kind="complaint" />} />
+            <Route
+              path="/complaints/:id"
+              element={<RequestDetail kind="complaint" />}
+            />
+            <Route path="/visitors" element={<Requests kind="visit" />} />
+            <Route path="/visitors/:id" element={<RequestDetail kind="visit" />} />
+
+            <Route path="/food" element={<Food />} />
+            <Route
+              path="/housekeeping"
+              element={<Bookings kind="housekeeping" />}
+            />
+            <Route path="/spaces" element={<Bookings kind="amenities" />} />
+
             <Route path="/residents" element={<Residents />} />
             <Route path="/residents/:id" element={<ResidentDetail />} />
             <Route path="/finance" element={<Finance />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/feedback" element={<Feedback />} />
+            <Route path="/feedback" element={<Feedback />} />
+
+            {/* Where the old combined Services module used to live. */}
+            <Route path="/services" element={<Navigate to="/food" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -321,6 +359,7 @@ function ModuleSidebar({
   const location = useLocation();
   const { data } = useSummary();
   const Icon = module.icon;
+  const groups = groupsOf(module);
 
   return (
     <aside className={`sidebar${open ? " open" : ""}`} aria-label={module.name}>
@@ -340,33 +379,44 @@ function ModuleSidebar({
       </div>
 
       <nav className="stack-sm" style={{ gap: 2 }}>
-        {module.pages.map((page) => {
-          // Only the module root carries filters, so detail pages keep the
-          // default page highlighted rather than nothing at all.
-          const onRoot = location.pathname === module.path;
-          const active = onRoot
-            ? location.search === page.query
-            : page.query === "";
-          const count = data && page.count ? page.count(data) : null;
+        {groups.map((group) => (
+          <div key={group} className="stack-sm" style={{ gap: 2 }}>
+            {/* A lone group needs no heading — the module name already said it. */}
+            {groups.length > 1 && (
+              <p className="sidebar-label">{GROUP_LABELS[group]}</p>
+            )}
 
-          return (
-            // Plain Link, not NavLink: NavLink matches on pathname alone and
-            // would light up every filter of the same module at once.
-            <Link
-              key={page.query || "default"}
-              to={`${module.path}${page.query}`}
-              className={`side-link hover-elevate active-elevate-2${
-                active ? " active" : ""
-              }`}
-              aria-current={active ? "page" : undefined}
-            >
-              {page.label}
-              {count !== null && count > 0 && (
-                <span className="side-count">{count}</span>
-              )}
-            </Link>
-          );
-        })}
+            {module.pages
+              .filter((page) => page.group === group)
+              .map((page) => {
+                // Only the module root carries filters, so detail pages keep
+                // the default page highlighted rather than nothing at all.
+                const onRoot = location.pathname === module.path;
+                const active = onRoot
+                  ? location.search === page.query
+                  : page.query === "";
+                const count = data && page.count ? page.count(data) : null;
+
+                return (
+                  // Plain Link, not NavLink: NavLink matches on pathname alone
+                  // and would light up every filter of the same module at once.
+                  <Link
+                    key={page.query || "default"}
+                    to={`${module.path}${page.query}`}
+                    className={`side-link hover-elevate active-elevate-2${
+                      active ? " active" : ""
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {page.label}
+                    {count !== null && count > 0 && (
+                      <span className="side-count">{count}</span>
+                    )}
+                  </Link>
+                );
+              })}
+          </div>
+        ))}
       </nav>
 
       <div className="sidebar-foot">

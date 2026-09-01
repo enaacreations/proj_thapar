@@ -148,22 +148,22 @@ export default function Dashboard() {
           <Row
             label="Maintenance"
             value={data.requestsByKind.maintenance}
-            to="/requests?kind=maintenance"
+            to="/maintenance"
           />
           <Row
             label="Laundry"
             value={data.requestsByKind.laundry}
-            to="/requests?kind=laundry"
+            to="/laundry"
           />
           <Row
             label="Complaints"
             value={data.requestsByKind.complaint}
-            to="/requests?kind=complaint"
+            to="/complaints"
           />
           <Row
             label="Visits"
             value={data.requestsByKind.visit}
-            to="/requests?kind=visit"
+            to="/visitors"
           />
         </dl>
       </div>

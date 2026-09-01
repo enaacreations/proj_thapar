@@ -39,8 +39,6 @@ export default function MaintenanceList() {
             icon={Wrench}
             title="Nothing broken so far"
             description="Report a faulty light, AC, tap or lock and the maintenance team gets it straight away."
-            actionLabel="Report a problem"
-            onAction={() => router.push("/maintenance/new")}
           />
         ) : (
           data.map((request) => (

@@ -2,18 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, Search } from "lucide-react";
 import type { AdminRole } from "@proj/shared";
-import { modulesFor } from "./modules";
+import { GROUP_LABELS, modulesFor } from "./modules";
 
 interface Entry {
   to: string;
   label: string;
   module: string;
+  /** Lets "requests" or "tasks" find every page of that kind. */
+  group: string;
 }
 
 /** Only pages this role can open are searchable — the gate is the same one the
  *  sidebar uses, so the palette can never route someone somewhere hidden. */
 function entriesFor(role: AdminRole): Entry[] {
-  const list: Entry[] = [{ to: "/", label: "Home", module: "Launcher" }];
+  const list: Entry[] = [
+    { to: "/", label: "Home", module: "Launcher", group: "" },
+  ];
 
   for (const mod of modulesFor(role)) {
     for (const page of mod.pages) {
@@ -21,6 +25,7 @@ function entriesFor(role: AdminRole): Entry[] {
         to: `${mod.path}${page.query}`,
         label: page.label,
         module: mod.name,
+        group: GROUP_LABELS[page.group],
       });
     }
   }
@@ -49,7 +54,8 @@ export function CommandPalette({
     return all.filter(
       (e) =>
         e.label.toLowerCase().includes(term) ||
-        e.module.toLowerCase().includes(term)
+        e.module.toLowerCase().includes(term) ||
+        e.group.toLowerCase().includes(term)
     );
   }, [role, query]);
 

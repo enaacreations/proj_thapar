@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Inbox } from "lucide-react";
 import type {
   AdminRequestSummary,
@@ -7,6 +7,7 @@ import type {
   ServiceRequestKind,
 } from "@proj/shared";
 import { api, messageOf } from "../api";
+import { REQUEST_MODULE_PATH } from "../modules";
 import {
   EmptyState,
   ErrorState,
@@ -17,37 +18,55 @@ import {
   relativeTime,
 } from "../ui";
 
-/** Kind comes from the sidebar; status is the in-page filter on top of it. */
-const KINDS: ServiceRequestKind[] = [
-  "maintenance",
-  "laundry",
-  "complaint",
-  "visit",
+/**
+ * The same list serves every request module. The kind is fixed by the route
+ * — one module owns one kind — and the sidebar drives the status, so both the
+ * filter and the URL say the same thing.
+ */
+type Filter = Extract<
+  RequestStatus,
+  "submitted" | "in_progress" | "resolved" | "rejected"
+> | "open";
+
+const FILTERS: Filter[] = [
+  "open",
+  "submitted",
+  "in_progress",
+  "resolved",
+  "rejected",
 ];
 
-const STATUS_TABS: { value: RequestStatus | "open"; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "submitted", label: "New" },
-  { value: "in_progress", label: "In progress" },
-  { value: "resolved", label: "Resolved" },
-  { value: "rejected", label: "Declined" },
-];
+const STATUS_COPY: Record<Filter, string> = {
+  open: "Open",
+  submitted: "New",
+  in_progress: "In progress",
+  resolved: "Resolved",
+  rejected: "Declined",
+};
+
+/** Reads as a sentence after the status word: "Open laundry pickups". */
+const NOUN: Record<ServiceRequestKind | "all", string> = {
+  all: "requests",
+  maintenance: "maintenance requests",
+  laundry: "laundry pickups",
+  complaint: "complaints",
+  visit: "visitor passes",
+};
 
 const LEDE: Record<ServiceRequestKind | "all", string> = {
-  all: "Everything residents have raised, across all four modules.",
+  all: "Everything residents have raised, across every module.",
   maintenance: "Repairs residents have reported in their rooms and common areas.",
   laundry: "Laundry pickups and drop-offs residents have booked.",
   complaint: "Complaints residents have raised. Reply with what happens next.",
   visit: "Visitor passes residents have asked for.",
 };
 
-export default function Requests() {
+export default function Requests({ kind }: { kind?: ServiceRequestKind }) {
   const [params] = useSearchParams();
-  const rawKind = params.get("kind") as ServiceRequestKind | null;
-  const kind: ServiceRequestKind | "all" =
-    rawKind && KINDS.includes(rawKind) ? rawKind : "all";
+  const raw = params.get("status") as Filter | null;
+  const status: Filter = raw && FILTERS.includes(raw) ? raw : "open";
+  const scope = kind ?? "all";
 
-  const [status, setStatus] = useState<RequestStatus | "open">("open");
   const [rows, setRows] = useState<AdminRequestSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +76,7 @@ export default function Requests() {
     setError(null);
     try {
       const list = await api.requests({
-        kind: kind === "all" ? undefined : kind,
+        kind,
         // "Open" isn't a stored status — it's submitted + in_progress, so it's
         // fetched unfiltered and narrowed here.
         status: status === "open" ? undefined : status,
@@ -80,26 +99,25 @@ export default function Requests() {
     void load();
   }, [load]);
 
+  // Kind used to be a filter on this one page; now it's a module of its own.
+  const bookmarked = params.get("kind") as ServiceRequestKind | null;
+  if (!kind && bookmarked && bookmarked in REQUEST_MODULE_PATH) {
+    return <Navigate to={REQUEST_MODULE_PATH[bookmarked]} replace />;
+  }
+
+  // Inside a module, a request opens within that module so the back link goes
+  // where you came from. The cross-module queue keeps its own detail route.
+  const hrefFor = (row: AdminRequestSummary) =>
+    kind
+      ? `${REQUEST_MODULE_PATH[row.kind]}/${row.id}`
+      : `/requests/${row.kind}/${row.id}`;
+
   return (
     <div className="stack animate-fade-up" style={{ gap: 20 }}>
       <PageHeader
-        title={kind === "all" ? "All requests" : KIND_LABELS[kind]}
-        description={LEDE[kind]}
+        title={`${STATUS_COPY[status]} ${NOUN[scope]}`}
+        description={LEDE[scope]}
       />
-
-      <div className="tabs" role="tablist" aria-label="Status">
-        {STATUS_TABS.map((t) => (
-          <button
-            key={t.value}
-            role="tab"
-            aria-selected={status === t.value}
-            className="tab hover-elevate active-elevate-2"
-            onClick={() => setStatus(t.value)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       {loading && !rows ? (
         <Loading />
@@ -109,7 +127,11 @@ export default function Requests() {
         <EmptyState
           icon={Inbox}
           title="Nothing here"
-          description="No requests match these filters right now."
+          description={
+            status === "open"
+              ? "Nothing is waiting on anyone right now."
+              : `No ${NOUN[scope]} with that status.`
+          }
         />
       ) : (
         <div className="list">
@@ -117,13 +139,13 @@ export default function Requests() {
             <Link
               key={`${row.kind}-${row.id}`}
               className="row-card hover-elevate active-elevate-2"
-              to={`/requests/${row.kind}/${row.id}`}
+              to={hrefFor(row)}
             >
               <span className="grow stack-sm">
                 <span className="inline" style={{ flexWrap: "wrap" }}>
                   <strong>{row.title}</strong>
                   <RequestStatusBadge status={row.status} />
-                  {kind === "all" && (
+                  {!kind && (
                     <span className="badge neutral">
                       {KIND_LABELS[row.kind]}
                     </span>

@@ -32,8 +32,19 @@ const ACTION_LABEL: Partial<Record<RequestStatus, string>> = {
   rejected: "Decline",
 };
 
-export default function RequestDetail() {
-  const { kind = "", id = "" } = useParams();
+/**
+ * Reachable two ways: inside the module that owns the kind (/laundry/LDR-1),
+ * where the kind comes from the route, and from the cross-module queue
+ * (/requests/laundry/LDR-1), where it's a path param.
+ */
+export default function RequestDetail({
+  kind: fixedKind,
+}: {
+  kind?: ServiceRequestKind;
+}) {
+  const params = useParams();
+  const kind = fixedKind ?? params.kind ?? "";
+  const id = params.id ?? "";
   const toast = useToast();
 
   const [data, setData] = useState<Detail | null>(null);
