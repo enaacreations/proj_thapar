@@ -183,6 +183,8 @@ export const api = {
   setMpin: (body: SetMpinBody) => post<AuthSession>(API_ROUTES.setMpin, body),
   mpinLogin: (mobile: string, mpin: string) =>
     post<AuthSession>(API_ROUTES.mpinLogin, { mobile, mpin }),
+  deleteAccount: () =>
+    request<void>(API_ROUTES.deleteAccount, { method: "DELETE" }),
 
   /* me */
   profile: () => request<ResidentProfile>(API_ROUTES.profile),

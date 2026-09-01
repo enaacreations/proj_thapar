@@ -10,6 +10,7 @@ import { env } from "./env";
 import { HttpError } from "./http-error";
 import { requireAuth } from "./auth";
 import { healthRouter } from "./routes/health";
+import { legalRouter } from "./routes/legal";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { meRouter } from "./routes/me";
@@ -96,6 +97,11 @@ export function createApp(): Express {
   // so each authenticates itself (signature / signed URL).
   app.use("/api/payments", paymentsPublicRouter);
   app.use("/api/documents", documentsRouter);
+
+  // Public pages the app stores require: a reachable privacy policy, a
+  // data-deletion page and a support page, all without a token. Mounted last
+  // so it can own "/" without shadowing any API route.
+  app.use(legalRouter);
 
   app.use(notFound);
   app.use(errorHandler);

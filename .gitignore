@@ -31,3 +31,6 @@ yarn-error.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Store signing / API credentials — never commit
+credentials/

@@ -30,7 +30,12 @@ interface AuthContextValue {
     session: AuthSession,
     biometricEnabled: boolean
   ) => Promise<void>;
-  signOut: () => Promise<void>;
+  /**
+   * `forget` also drops the remembered mobile number — used after account
+   * deletion, where leaving it behind would prefill a number that no longer
+   * has an account.
+   */
+  signOut: (options?: { forget?: boolean }) => Promise<void>;
 }
 
 const SESSION_KEY = "thapar.session";
@@ -100,11 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist, session?.mobile, lastMobile]
   );
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async ({ forget = false } = {}) => {
     setAuthToken(null);
     setSession(null);
-    // The mobile number is deliberately kept so sign-in stays one tap away.
+    // The mobile number is deliberately kept so sign-in stays one tap away,
+    // unless the account itself is gone.
     await AsyncStorage.removeItem(SESSION_KEY);
+    if (forget) {
+      setLastMobile(null);
+      await AsyncStorage.removeItem(LAST_MOBILE_KEY);
+    }
   }, []);
 
   const value = useMemo<AuthContextValue>(

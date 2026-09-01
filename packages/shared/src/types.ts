@@ -69,8 +69,12 @@ export interface SendOtpBody {
 }
 
 export interface SendOtpResponse {
-  /** Dev-only echo so the app can prefill; a real gateway would omit this. */
-  devOtp: string;
+  /**
+   * Echoed back only in development and for the allow-listed demo / App Review
+   * numbers, so the app can prefill the code. Absent in production for every
+   * real number — echoing it there would be an account-takeover backdoor.
+   */
+  devOtp?: string;
   expiresInSeconds: number;
 }
 
@@ -435,6 +439,7 @@ export const API_ROUTES = {
   verifyOtp: "/api/auth/otp/verify",
   setMpin: "/api/auth/mpin",
   mpinLogin: "/api/auth/mpin/login",
+  deleteAccount: "/api/auth/account",
 
   profile: "/api/me/profile",
   profileUnmask: (field: "dob" | "kyc") => `/api/me/profile/unmask/${field}`,

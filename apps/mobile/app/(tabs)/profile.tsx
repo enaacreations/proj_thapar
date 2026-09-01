@@ -2,7 +2,15 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Eye, EyeOff, LogOut, Moon, Smartphone, Sun } from "lucide-react-native";
+import {
+  Eye,
+  EyeOff,
+  LogOut,
+  Moon,
+  Smartphone,
+  Sun,
+  Trash2,
+} from "lucide-react-native";
 import type { ResidentProfile } from "@proj/shared";
 import { useTheme, type ThemePreference } from "../../src/theme/ThemeProvider";
 import { space } from "../../src/theme/tokens";
@@ -33,6 +41,8 @@ export default function ProfileScreen() {
     []
   );
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [revealed, setRevealed] = useState<{ dob: boolean; kyc: boolean }>({
     dob: false,
     kyc: false,
@@ -76,6 +86,26 @@ export default function ProfileScreen() {
     } catch {
       toast.error("Couldn't save that photo. Try again.");
     }
+  };
+
+  /**
+   * Account deletion has to be reachable from inside the app — App Store
+   * review guideline 5.1.1(v). Deleting the resident invalidates the token,
+   * so the local session is cleared either way.
+   */
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await api.deleteAccount();
+    } catch {
+      setDeleting(false);
+      toast.error("Couldn't delete your account. Please try again.");
+      return;
+    }
+    setConfirmDelete(false);
+    setDeleting(false);
+    await signOut({ forget: true });
+    router.replace("/(auth)/welcome");
   };
 
   return (
@@ -183,6 +213,21 @@ export default function ProfileScreen() {
             icon={<LogOut size={20} color={c.ink} strokeWidth={2} />}
             onPress={() => setConfirmSignOut(true)}
           />
+
+          <Card style={styles.details}>
+            <Text variant="cardTitle">Delete account</Text>
+            <Text variant="caption" tone="muted">
+              Permanently deletes your profile, ID documents, room details,
+              requests and bookings. Invoices and receipts are kept in the
+              hostel's accounting records where the law requires it.
+            </Text>
+            <Button
+              label="Delete my account"
+              variant="destructive"
+              icon={<Trash2 size={20} color={c.onAccent} strokeWidth={2} />}
+              onPress={() => setConfirmDelete(true)}
+            />
+          </Card>
         </>
       )}
 
@@ -204,6 +249,26 @@ export default function ProfileScreen() {
           label="Stay signed in"
           variant="secondary"
           onPress={() => setConfirmSignOut(false)}
+        />
+      </Sheet>
+
+      <Sheet
+        visible={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="Delete your account?"
+        subtitle="This can't be undone. You'll lose access straight away, and you'd have to register again and be approved by the hostel office."
+      >
+        <Button
+          label={deleting ? "Deleting…" : "Yes, delete my account"}
+          variant="destructive"
+          disabled={deleting}
+          onPress={() => void deleteAccount()}
+        />
+        <Button
+          label="Keep my account"
+          variant="secondary"
+          disabled={deleting}
+          onPress={() => setConfirmDelete(false)}
         />
       </Sheet>
     </Screen>

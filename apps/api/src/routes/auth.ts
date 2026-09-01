@@ -10,6 +10,7 @@ import type {
   VerifyOtpBody,
 } from "@proj/shared";
 import { HttpError } from "../http-error";
+import { env, isReviewPhone } from "../env";
 import { issueToken, requireAuth, residentIdOf } from "../auth";
 import * as db from "../data/db";
 
@@ -99,8 +100,11 @@ authRouter.post("/otp/send", async (req, res) => {
   }
 
   const { code, ttlSeconds } = await db.issueOtp(normalised);
+  // Never echo a real number's code in production — that would let anyone
+  // sign in as anyone. Demo and App Review numbers are the exception.
+  const echo = !env.isProduction || isReviewPhone(normalised);
   const response: SendOtpResponse = {
-    devOtp: code,
+    ...(echo ? { devOtp: code } : {}),
     expiresInSeconds: ttlSeconds,
   };
   res.json(response);
@@ -159,4 +163,16 @@ authRouter.post("/mpin/login", async (req, res) => {
     mpinSet: true,
   };
   res.json(session);
+});
+
+/**
+ * In-app account deletion. Apple requires this for any app with sign-in
+ * (App Store Review guideline 5.1.1(v)); a web page alone is not enough.
+ * Google accepts the published web instructions, but this covers both.
+ */
+authRouter.delete("/account", requireAuth, async (req, res) => {
+  await db.deleteResidentAccount(residentIdOf(req));
+  // The token is derived from the resident id, so removing the row is what
+  // invalidates every session on every device.
+  res.status(204).end();
 });

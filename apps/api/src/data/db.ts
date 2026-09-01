@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type {
   AppNotification,
@@ -23,6 +23,7 @@ import type {
   VisitRequest,
   VisitorRelation,
 } from "@proj/shared";
+import { env, isReviewPhone } from "../env";
 import { db } from "../db/client";
 import * as t from "../db/schema";
 
@@ -159,8 +160,13 @@ export async function issueOtp(
   mobile: string
 ): Promise<{ code: string; ttlSeconds: number }> {
   const ttlSeconds = 120;
-  // Fixed in dev so the demo flow is reproducible without an SMS gateway.
-  const code = "123456";
+  // Fixed for the demo and the allow-listed App Review numbers, which is what
+  // makes the flow reproducible without an SMS gateway. Everyone else gets a
+  // random code in production — see `isReviewPhone`.
+  const code =
+    env.isProduction && !isReviewPhone(mobile)
+      ? String(randomInt(100000, 1000000))
+      : (isReviewPhone(mobile) ? env.reviewOtpCode : "123456");
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
   await db
@@ -938,4 +944,39 @@ export async function createNotification(
   await db
     .insert(t.notifications)
     .values({ ...input, id: randomUUID(), residentId });
+}
+
+/* ------------------------------------------------------- account deletion */
+
+/**
+ * Deletes a resident and everything hanging off them. Every resident-owned
+ * table cascades from `residents`, but `tracking_events` deliberately has no
+ * foreign key (it points at four different request tables), so its rows have
+ * to be swept separately or they outlive the requests they describe.
+ *
+ * Financial records are cascaded here too; the retention obligation stated in
+ * the privacy policy is met by the hostel's own accounting records, which are
+ * kept outside the resident's app account.
+ */
+export async function deleteResidentAccount(residentId: string): Promise<void> {
+  const resident = await getResident(residentId);
+
+  await db.transaction(async (tx) => {
+    await tx.delete(t.residents).where(eq(t.residents.id, residentId));
+
+    // `otps` is keyed by mobile number, not resident id, so it doesn't cascade.
+    if (resident) {
+      await tx.delete(t.otps).where(eq(t.otps.mobile, resident.mobile));
+    }
+
+    // Same predicate the seed uses: anything no longer pointing at a live
+    // request row is an orphan, which after the cascade means this resident's.
+    await tx.execute(sql`
+      delete from tracking_events te
+      where not exists (select 1 from maintenance_requests r where r.id = te.request_id)
+        and not exists (select 1 from laundry_requests r where r.id = te.request_id)
+        and not exists (select 1 from complaints r where r.id = te.request_id)
+        and not exists (select 1 from visit_requests r where r.id = te.request_id)
+    `);
+  });
 }
