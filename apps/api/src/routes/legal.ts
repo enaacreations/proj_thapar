@@ -178,10 +178,11 @@ years under Indian law. Everything else is deleted when you ask us to.</p>
       masked in the app and only revealed when you explicitly tap to show them.</li>
 </ul>
 
-<h2>Children</h2>
-<p>${ORG_NAME} is intended for hostel residents aged 13 and over. We do not
-knowingly collect data from children under 13. If you believe a child under 13
-has an account, contact us and we will remove it.</p>
+<h2>Age</h2>
+<p>${ORG_NAME} is intended for hostel residents aged 18 and over, which is the
+target audience declared on Google Play. We do not knowingly collect data from
+children. A resident under 18 should be registered by the hostel office with a
+parent or guardian's consent; contact us if an account needs to be removed.</p>
 
 <h2>Changes</h2>
 <p>If we change this policy materially we will update the date above and notify
