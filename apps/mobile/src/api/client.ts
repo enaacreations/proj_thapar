@@ -31,6 +31,19 @@ import {
   type SetMpinBody,
   type UpdateMealOptInBody,
   type VisitRequest,
+  ONBOARDING_ROUTES,
+  type InventoryCondition,
+  type KycDocumentType,
+  type KycState,
+  type LayoutPiece,
+  type LeaseAgreement,
+  type MoveInState,
+  type OnboardingProgress,
+  type RoomPlan,
+  type RoommateMatchResult,
+  type RoommateProfile,
+  type RoommateProfileBody,
+  type TourSpace,
 } from "@proj/shared";
 
 const API_PORT = 4000;
@@ -207,4 +220,54 @@ export const api = {
   notifications: () => request<AppNotification[]>(API_ROUTES.notifications),
   markNotificationRead: (id: string) =>
     post<AppNotification>(API_ROUTES.notificationRead(id)),
+
+  /* onboarding */
+  onboardingProgress: () =>
+    request<OnboardingProgress>(ONBOARDING_ROUTES.progress),
+
+  kyc: () => request<KycState>(ONBOARDING_ROUTES.kyc),
+  uploadKycDocument: (type: KycDocumentType, uri: string) =>
+    post<KycState>(ONBOARDING_ROUTES.kycDocuments, { type, uri }),
+  removeKycDocument: (id: string) =>
+    request<KycState>(ONBOARDING_ROUTES.kycDocument(id), { method: "DELETE" }),
+  submitKyc: () => post<KycState>(ONBOARDING_ROUTES.kycSubmit),
+
+  lease: () => request<LeaseAgreement | null>(ONBOARDING_ROUTES.lease),
+  signLease: (signerName: string, signaturePath: string) =>
+    post<LeaseAgreement>(ONBOARDING_ROUTES.leaseSign, {
+      signerName,
+      signaturePath,
+      agreed: true,
+    }),
+
+  roommateProfile: () =>
+    request<RoommateProfile | null>(ONBOARDING_ROUTES.roommateProfile),
+  saveRoommateProfile: (body: RoommateProfileBody) =>
+    request<RoommateProfile>(ONBOARDING_ROUTES.roommateProfile, {
+      method: "PUT",
+      body,
+    }),
+  roommateMatches: () =>
+    request<RoommateMatchResult>(ONBOARDING_ROUTES.roommateMatches),
+
+  moveIn: () => request<MoveInState>(ONBOARDING_ROUTES.moveIn),
+  setMoveInTask: (key: string, done: boolean) =>
+    post<MoveInState>(ONBOARDING_ROUTES.moveInTask(key), { done }),
+  inventoryTemplate: () =>
+    request<string[]>(`${ONBOARDING_ROUTES.inventory}/template`),
+  addInventoryItem: (body: {
+    name: string;
+    condition: InventoryCondition;
+    notes?: string;
+    photoUris?: string[];
+  }) => post<MoveInState>(ONBOARDING_ROUTES.inventory, body),
+  removeInventoryItem: (id: string) =>
+    request<MoveInState>(ONBOARDING_ROUTES.inventoryItem(id), {
+      method: "DELETE",
+    }),
+  submitInventory: () => post<MoveInState>(ONBOARDING_ROUTES.inventorySubmit),
+
+  tours: () => request<TourSpace[]>(ONBOARDING_ROUTES.tours),
+  roomPlan: () => request<RoomPlan>(ONBOARDING_ROUTES.roomPlan),
+  layoutPieces: () => request<LayoutPiece[]>(ONBOARDING_ROUTES.layoutPieces),
 };

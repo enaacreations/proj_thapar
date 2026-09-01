@@ -19,7 +19,7 @@ interface ThemeContextValue {
   setPreference: (next: ThemePreference) => void;
 }
 
-const STORAGE_KEY = "uniliv.theme";
+const STORAGE_KEY = "thapar.theme";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 

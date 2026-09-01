@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import type { RegistrationDetail as Detail } from "@proj/shared";
 import { api, messageOf } from "../api";
 import {
+  BackLink,
   ErrorState,
   Loading,
   Modal,
@@ -14,7 +15,6 @@ import {
 
 export default function RegistrationDetail() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
 
   const [data, setData] = useState<Detail | null>(null);
@@ -80,11 +80,8 @@ export default function RegistrationDetail() {
   const pending = data?.status === "pending_approval";
 
   return (
-    <>
-      <button className="btn ghost" style={{ alignSelf: "flex-start", paddingLeft: 0 }} onClick={() => navigate("/registrations")}>
-        <ArrowLeft size={18} strokeWidth={2} />
-        Back to registrations
-      </button>
+    <div className="stack animate-fade-up" style={{ gap: 20 }}>
+      <BackLink to="/registrations" label="Back to registrations" />
 
       {loading && !data ? (
         <Loading />
@@ -244,7 +241,7 @@ export default function RegistrationDetail() {
           </button>
         </div>
       </Modal>
-    </>
+    </div>
   );
 }
 

@@ -7,8 +7,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
   Clock,
   Info,
@@ -16,7 +18,12 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
-import type { ResidentAccountStatus } from "@proj/shared";
+import {
+  REQUEST_STATUS_LABELS,
+  type RequestStatus,
+  type ResidentAccountStatus,
+  type ServiceRequestKind,
+} from "@proj/shared";
 
 /* ----------------------------------------------------------------- badges */
 
@@ -40,6 +47,35 @@ export function StatusBadge({ status }: { status: ResidentAccountStatus }) {
     </span>
   );
 }
+
+const REQUEST_STATUS: Record<
+  RequestStatus,
+  { cls: string; icon: LucideIcon }
+> = {
+  submitted: { cls: "pending", icon: Clock },
+  in_progress: { cls: "info", icon: Loader2 },
+  resolved: { cls: "approved", icon: CheckCircle2 },
+  rejected: { cls: "rejected", icon: XCircle },
+  cancelled: { cls: "neutral", icon: XCircle },
+};
+
+export function RequestStatusBadge({ status }: { status: RequestStatus }) {
+  const s = REQUEST_STATUS[status];
+  const Icon = s.icon;
+  return (
+    <span className={`badge ${s.cls}`}>
+      <Icon size={13} strokeWidth={2} />
+      {REQUEST_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+export const KIND_LABELS: Record<ServiceRequestKind, string> = {
+  maintenance: "Maintenance",
+  laundry: "Laundry",
+  complaint: "Complaint",
+  visit: "Visit",
+};
 
 /* ------------------------------------------------------------------ toast */
 
@@ -159,6 +195,124 @@ export function ErrorState({
   );
 }
 
+/* ------------------------------------------------------------ page pieces */
+
+/** Every screen opens the same way: title, one plain-language line under it. */
+export function PageHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="page-head">
+      <div className="stack-sm">
+        <h1>{title}</h1>
+        {description && <p className="muted small">{description}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function BackLink({ to, label }: { to: string; label: string }) {
+  return (
+    <Link className="back-link hover-elevate active-elevate-2" to={to}>
+      <ArrowLeft size={18} strokeWidth={2} />
+      {label}
+    </Link>
+  );
+}
+
+export function Stat({
+  label,
+  value,
+  tone = "ink",
+  suffix,
+}: {
+  label: string;
+  value: number | string | null | undefined;
+  tone?: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="card">
+      <p className="caption">{label}</p>
+      <p className="stat-value" style={{ color: `var(--${tone})` }}>
+        {value ?? "—"}
+        {suffix && <span className="small muted">{suffix}</span>}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Progress ring stroked with the brand gradient — the one place on Home the
+ * gradient is allowed to show up at size.
+ */
+export function ProgressRing({
+  percent,
+  label,
+}: {
+  percent: number;
+  label?: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+
+  return (
+    <div className="ring">
+      <svg width="92" height="92" viewBox="0 0 92 92" aria-hidden>
+        <defs>
+          <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#FF9A3D" />
+            <stop offset="50%" stopColor="#F2603C" />
+            <stop offset="100%" stopColor="#C2459A" />
+          </linearGradient>
+        </defs>
+        <circle
+          cx="46"
+          cy="46"
+          r={radius}
+          fill="none"
+          stroke="var(--muted-bg)"
+          strokeWidth="8"
+        />
+        <circle
+          cx="46"
+          cy="46"
+          r={radius}
+          fill="none"
+          stroke="url(#ring-gradient)"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - clamped / 100)}
+          style={{ transition: "stroke-dashoffset 350ms ease" }}
+        />
+      </svg>
+      <span className="ring-label">{label ?? `${clamped}%`}</span>
+    </div>
+  );
+}
+
+/** Horizontal progress bar with the number beside it, never colour alone. */
+export function Meter({ percent }: { percent: number }) {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  return (
+    <span className="inline" style={{ width: "100%", maxWidth: 260 }}>
+      <span className="meter">
+        <span style={{ width: `${clamped}%` }} />
+      </span>
+      <span className="caption mono">{clamped}%</span>
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------------ modal */
 
 export function Modal({
@@ -204,6 +358,25 @@ export function Modal({
 }
 
 /* ------------------------------------------------------------------- misc */
+
+export function greeting(at: Date = new Date()): string {
+  const hour = at.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+/** Live clock for the topbar — ticks on the minute, not every second. */
+export function useClock(): Date {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return now;
+}
 
 export function initials(name: string): string {
   return name

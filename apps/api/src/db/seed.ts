@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "./client";
 import * as t from "./schema";
 import { DEMO_MOBILE, DEMO_RESIDENT_ID, isoDate } from "../data/db";
@@ -18,11 +18,29 @@ function daysAgo(n: number): Date {
   return d;
 }
 
+/**
+ * tracking_events can't have a foreign key — it points at four different
+ * request tables — so cascading a resident delete leaves its events behind.
+ * Without this the seed stacks a fresh copy of every event on each run.
+ */
+async function purgeOrphanTrackingEvents(): Promise<void> {
+  const { rowCount } = await db.execute(sql`
+    delete from tracking_events te
+    where not exists (select 1 from maintenance_requests r where r.id = te.request_id)
+      and not exists (select 1 from laundry_requests r where r.id = te.request_id)
+      and not exists (select 1 from complaints r where r.id = te.request_id)
+      and not exists (select 1 from visit_requests r where r.id = te.request_id)
+  `);
+  if (rowCount) console.log(`Removed ${rowCount} orphaned tracking events.`);
+}
+
 async function seed(): Promise<void> {
   console.log("Seeding demo resident…");
 
   // Cascade deletes rooms, payments, requests, attendance, notifications.
   await db.delete(t.residents).where(eq(t.residents.id, DEMO_RESIDENT_ID));
+  await clearSeededRegistrations();
+  await purgeOrphanTrackingEvents();
 
   await db.insert(t.residents).values({
     id: DEMO_RESIDENT_ID,
@@ -42,8 +60,8 @@ async function seed(): Promise<void> {
     roomNumber: "902",
     floor: "9th floor",
     wing: "B wing",
-    buildingName: "Uniliv Block B",
-    propertyName: "Uniliv Thapar",
+    buildingName: "Thapar Block B",
+    propertyName: "Thapar",
     propertyAddress: "Thapar Institute Campus, Bhadson Road, Patiala 147004",
     roomType: "Twin sharing AC",
     occupancy: "2 of 2 beds occupied",
@@ -199,7 +217,7 @@ async function seed(): Promise<void> {
           | "facial",
         latitude: 30.3549,
         longitude: 76.3626,
-        locationLabel: "Uniliv Thapar, Block B",
+        locationLabel: "Thapar, Block B",
         photoUri: null,
         withinGeofence: true,
       };
@@ -256,7 +274,7 @@ async function seed(): Promise<void> {
   await seedPendingRegistrations();
 
   console.log(`Seeded ${DEMO_RESIDENT_ID} (${DEMO_MOBILE}). OTP in dev is 123456.`);
-  console.log("Admin sign-in: ops@uniliv.test / uniliv123");
+  console.log("Admin sign-in: ops@thapar.test / thapar123");
 }
 
 /** Two reviewers so the "reviewed by" column shows something meaningful. */
@@ -265,25 +283,33 @@ async function seedAdmins(): Promise<void> {
     {
       id: "ADM-001",
       name: "Priya Nair",
-      email: "ops@uniliv.test",
+      email: "ops@thapar.test",
       role: "ops_excellence" as const,
     },
     {
       id: "ADM-002",
       name: "Rakesh Bhatia",
-      email: "warden@uniliv.test",
+      email: "warden@thapar.test",
       role: "warden" as const,
     },
   ];
 
   for (const user of users) {
-    const passwordHash = await hashPassword("uniliv123");
+    const passwordHash = await hashPassword("thapar123");
     await db
       .insert(t.adminUsers)
       .values({ ...user, passwordHash, active: true })
       .onConflictDoUpdate({
-        target: t.adminUsers.email,
-        set: { name: user.name, role: user.role, passwordHash, active: true },
+        // Conflict on the id, not the email: a rebrand changes the email, and
+        // these two ids are what stay stable across re-seeds.
+        target: t.adminUsers.id,
+        set: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          passwordHash,
+          active: true,
+        },
       });
   }
 }
@@ -341,9 +367,22 @@ async function seedPendingRegistrations(): Promise<void> {
   ];
 
   for (const row of pending) {
-    await db.delete(t.residents).where(eq(t.residents.id, row.id));
     await db.insert(t.residents).values(row);
   }
+}
+
+/** Ids the seed owns; cleared up front so the orphan purge can run after. */
+const SEEDED_REGISTRATION_IDS = [
+  "RES-2026-1101",
+  "RES-2026-1102",
+  "RES-2026-1103",
+  "RES-2026-1090",
+];
+
+async function clearSeededRegistrations(): Promise<void> {
+  await db
+    .delete(t.residents)
+    .where(inArray(t.residents.id, SEEDED_REGISTRATION_IDS));
 }
 
 seed()

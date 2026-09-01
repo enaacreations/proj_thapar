@@ -1,5 +1,5 @@
 /**
- * Uniliv "Sunset" theme. Values are copied verbatim from the design system
+ * Thapar "Sunset" theme. Values are copied verbatim from the design system
  * spec — do not restyle them here.
  */
 

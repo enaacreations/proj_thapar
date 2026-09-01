@@ -1,5 +1,6 @@
 import {
   Bed,
+  ClipboardCheck,
   CalendarHeart,
   ClipboardList,
   CreditCard,
@@ -30,6 +31,18 @@ export interface ModuleTile {
  * matching what residents open daily.
  */
 export const MODULES: ModuleTile[] = [
+  {
+    key: "onboarding",
+    name: "Move in",
+    description: "ID, agreement, room check",
+    href: "/onboarding",
+    icon: ClipboardCheck,
+    tint: "pop",
+    keywords: [
+      "onboarding", "kyc", "aadhaar", "lease", "agreement", "sign",
+      "roommate", "checklist", "inventory", "tour", "layout", "move",
+    ],
+  },
   {
     key: "food",
     name: "Food orders",

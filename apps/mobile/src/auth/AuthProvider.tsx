@@ -33,8 +33,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
 }
 
-const SESSION_KEY = "uniliv.session";
-const LAST_MOBILE_KEY = "uniliv.lastMobile";
+const SESSION_KEY = "thapar.session";
+const LAST_MOBILE_KEY = "thapar.lastMobile";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 

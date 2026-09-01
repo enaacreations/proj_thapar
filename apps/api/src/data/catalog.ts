@@ -282,3 +282,163 @@ export function menuForDate(date: string): DayMenu {
     },
   };
 }
+
+/* ------------------------------------------------- onboarding reference */
+
+/**
+ * The move-in checklist template. `blockedBy` ties a step to another flow, so
+ * a resident can't tick "keys collected" before the lease is actually signed.
+ */
+export const MOVE_IN_TASKS: {
+  key: string;
+  label: string;
+  description: string;
+  blockedBy: "kyc" | "lease" | "inventory" | null;
+}[] = [
+  {
+    key: "documents",
+    label: "Upload your ID documents",
+    description: "Aadhaar and a passport photo. Takes about two minutes.",
+    blockedBy: "kyc",
+  },
+  {
+    key: "agreement",
+    label: "Read and sign the agreement",
+    description: "Check the rent, deposit and notice period before signing.",
+    blockedBy: "lease",
+  },
+  {
+    key: "roommate_profile",
+    label: "Fill in your living habits",
+    description: "Used to pair you with a compatible roommate.",
+    blockedBy: null,
+  },
+  {
+    key: "inventory",
+    label: "Check the room and record its condition",
+    description:
+      "Photograph anything already damaged. This protects your deposit later.",
+    blockedBy: "inventory",
+  },
+  {
+    key: "keys",
+    label: "Collect your keys and access card",
+    description: "From the front desk, any time between 9 am and 8 pm.",
+    blockedBy: null,
+  },
+  {
+    key: "wifi",
+    label: "Get on the Wi-Fi",
+    description: "The front desk will give you the network name and password.",
+    blockedBy: null,
+  },
+  {
+    key: "mess",
+    label: "Set your meal preferences",
+    description: "Choose which meals you want, so the mess can plan.",
+    blockedBy: null,
+  },
+  {
+    key: "house_rules",
+    label: "Read the house rules",
+    description: "Quiet hours, visitors, and what to do in an emergency.",
+    blockedBy: null,
+  },
+];
+
+/** Standard fittings checked at move-in. */
+export const INVENTORY_TEMPLATE = [
+  "Bed frame",
+  "Mattress",
+  "Study table",
+  "Chair",
+  "Wardrobe",
+  "Tubelight",
+  "Ceiling fan",
+  "Air conditioner",
+  "Window and latch",
+  "Curtains",
+  "Door lock",
+  "Mirror",
+  "Washroom fittings",
+  "Power sockets",
+];
+
+/**
+ * Tour spaces. `panoramaUri` is null until the property uploads an
+ * equirectangular photo — the viewer shows a placeholder until then.
+ */
+export const TOUR_SPACES = [
+  {
+    id: "room-twin",
+    name: "Twin sharing room",
+    kind: "room" as const,
+    description: "Two beds, two study desks, attached washroom, AC.",
+    panoramaUri: null as string | null,
+    hotspots: [
+      { x: 0.25, label: "Washroom", target: "washroom" },
+      { x: 0.75, label: "Corridor", target: "corridor" },
+    ],
+  },
+  {
+    id: "washroom",
+    name: "Attached washroom",
+    kind: "room" as const,
+    description: "Geyser, shower, western WC.",
+    panoramaUri: null as string | null,
+    hotspots: [{ x: 0.5, label: "Back to room", target: "room-twin" }],
+  },
+  {
+    id: "corridor",
+    name: "Floor corridor",
+    kind: "common" as const,
+    description: "Lift lobby, water point and housekeeping station.",
+    panoramaUri: null as string | null,
+    hotspots: [
+      { x: 0.2, label: "Common room", target: "common-room" },
+      { x: 0.8, label: "Back to room", target: "room-twin" },
+    ],
+  },
+  {
+    id: "common-room",
+    name: "Common room",
+    kind: "amenity" as const,
+    description: "TV, board games and seating for about twenty.",
+    panoramaUri: null as string | null,
+    hotspots: [{ x: 0.5, label: "Mess hall", target: "mess" }],
+  },
+  {
+    id: "mess",
+    name: "Mess hall",
+    kind: "amenity" as const,
+    description: "Seats 120, serves four meals a day.",
+    panoramaUri: null as string | null,
+    hotspots: [{ x: 0.5, label: "Common room", target: "common-room" }],
+  },
+];
+
+/** Plan of the twin-sharing room, in centimetres, for the layout planner. */
+export const ROOM_PLAN = {
+  spaceId: "room-twin",
+  name: "Twin sharing room",
+  widthCm: 380,
+  depthCm: 300,
+  fixtures: [
+    { name: "Bed A", xCm: 10, yCm: 10, widthCm: 90, depthCm: 190 },
+    { name: "Bed B", xCm: 280, yCm: 10, widthCm: 90, depthCm: 190 },
+    { name: "Window", xCm: 140, yCm: 0, widthCm: 100, depthCm: 8 },
+    { name: "Door", xCm: 0, yCm: 240, widthCm: 8, depthCm: 90 },
+    { name: "Wardrobe", xCm: 300, yCm: 210, widthCm: 70, depthCm: 55 },
+  ],
+};
+
+/** Furniture a resident might bring, sized realistically. */
+export const LAYOUT_PIECES = [
+  { id: "study-chair", name: "Study chair", widthCm: 50, depthCm: 50 },
+  { id: "mini-fridge", name: "Mini fridge", widthCm: 50, depthCm: 50 },
+  { id: "bookshelf", name: "Bookshelf", widthCm: 80, depthCm: 30 },
+  { id: "floor-lamp", name: "Floor lamp", widthCm: 35, depthCm: 35 },
+  { id: "bean-bag", name: "Bean bag", widthCm: 80, depthCm: 80 },
+  { id: "drying-rack", name: "Drying rack", widthCm: 60, depthCm: 55 },
+  { id: "suitcase", name: "Suitcase", widthCm: 75, depthCm: 30 },
+];

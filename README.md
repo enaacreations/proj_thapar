@@ -1,4 +1,4 @@
-# Uniliv — Thapar hostel resident app
+# Thapar — hostel resident app
 
 Turborepo monorepo: an Expo / React Native app for hostel residents, backed by an
 Express API, sharing one typed contract.
@@ -24,7 +24,7 @@ npm install
 Create the database (once), then apply migrations and seed the demo resident:
 
 ```bash
-createdb uniliv_thapar && npm run db:migrate && npm run db:seed
+createdb thapar && npm run db:migrate && npm run db:seed
 ```
 
 Copy `apps/api/.env.example` to `apps/api/.env` first if `DATABASE_URL` needs
@@ -65,35 +65,120 @@ npm run dev:admin
 **Demo sign-in (resident app):** mobile `9876543210`, OTP `123456` (fixed in
 dev — there's no SMS gateway wired up). Then set any 6-digit MPIN.
 
-**Demo sign-in (admin panel):** `ops@uniliv.test` / `uniliv123` on
-http://localhost:5173. A second reviewer exists as `warden@uniliv.test`.
+**Demo sign-in (admin panel):** `ops@thapar.test` / `thapar123` on
+http://localhost:5173. A second reviewer exists as `warden@thapar.test`.
 
 ## Admin panel
 
-The hostel office reviews registrations here. A resident who registers in the
-app is `pending_approval` and **cannot sign in** until someone approves them.
+The hostel office's side of the app. Home is a launcher of module tiles with
+live nudges ("4 waiting", "2 open"), matching the design system's web pattern.
 
-- **Queue** with pending / approved / rejected tabs and live counts.
-- **Detail view** shows everything needed to check against an ID proof. The
-  KYC number is masked by default with an explicit "Show" toggle — the full
-  value is only fetched for that screen.
-- **Approve** lets the resident sign in immediately. **Reject** requires a
-  reason, because the resident is shown it when they next try to sign in.
-- Every decision records who made it, when, and the note.
+**Registrations** — a resident who registers in the app is `pending_approval`
+and **cannot sign in** until someone approves them.
 
-Two things worth knowing about how it's wired:
+- Queue with pending / approved / rejected tabs and live counts.
+- Detail view shows everything needed to check against an ID proof. The KYC
+  number is masked by default with an explicit "Show" toggle — the full value
+  is only fetched for that screen.
+- Approve lets the resident sign in immediately. Reject requires a reason,
+  because the resident is shown it when they next try to sign in.
+
+**Requests** — one queue across all four modules (maintenance, laundry,
+complaints, visits), filterable by type and status.
+
+- Detail renders any kind from one screen: the API flattens kind-specific
+  fields into label/value pairs.
+- Move a request to *in progress*, *resolved* or *declined*. The note is
+  appended to the resident's tracking timeline and pushed as a notification.
+  Declining requires a reason.
+
+**Residents** — searchable directory showing room, account status and open
+request count.
+
+- Allocate or change a room. Until this happens the resident's "My room"
+  screen is empty, which the panel says explicitly.
+- Set a payment plan and record payments against it; each one becomes a
+  receipt in the resident's ledger.
+- Attendance summary and recent requests, cross-linked to the request detail.
+
+**Move-in** — onboarding progress per resident: review ID documents, issue the
+rental agreement, see the signed signature, the roommate profile with suggested
+pairings, the checklist, and the locked room-condition inventory.
+
+**Feedback** — every rating with its average, linked back to the resident.
+
+Things worth knowing about how it's wired:
+
+- Status changes and registration decisions only match rows that are still
+  open/pending. A stale tab gets a 409 telling it to refresh instead of
+  silently reopening a closed request.
+- Every admin write that a resident would care about — approval, room, payment,
+  status change — also inserts a notification for them.
 
 - Admin auth is separate from resident auth. Passwords are hashed with scrypt
   (node's own crypto, no extra dependency) and sessions are opaque random
   tokens in `admin_sessions` with a 12-hour expiry — not the `tok_<id>` scheme
   the resident app still uses.
-- Approve/reject only matches rows that are still `pending_approval`. If two
-  reviewers open the same registration, the second one gets a 409 telling them
-  to refresh rather than silently overwriting the first decision.
+- `tracking_events` has no foreign key, because it points at four different
+  request tables. Deleting a resident cascades their requests away but leaves
+  the events behind, so the seed purges orphans before inserting. Anything else
+  that deletes requests needs to do the same.
 
-Approving does **not** allocate a room or payment plan — those screens show a
-"nothing allocated yet" state for a freshly approved resident. Room allocation
-is a separate module that doesn't exist yet.
+## Onboarding and move-in
+
+Four flows, reachable from the "Move in" tile on Home.
+
+**ID documents (KYC)** — the resident uploads Aadhaar front/back and a photo
+(PAN optional), sends them for review, and the office verifies or rejects with
+a reason. Re-uploading after a rejection puts it back in the queue.
+
+**Rental agreement** — the office issues terms (rent, deposit, notice period,
+dates); the room details are **snapshotted into the agreement at issue time**,
+so it stays truthful even if the room changes later. The resident reads the
+terms and house rules, ticks a confirmation, types their name, and signs on a
+draw-to-sign pad. The signature is stored as SVG path data and rendered back on
+both sides with a timestamp.
+
+**Roommate matching** — a short questionnaire (sleep schedule, tidiness, noise,
+social level, study location, guests, smoking, food). Compatibility is a
+**weighted similarity score, not a black box**: each dimension contributes a
+0–1 agreement weighted by how much friction it actually causes, and every match
+lists the specific reasons for and against. The office sees the same rankings
+when allocating a room.
+
+**Move-in checklist** — eight steps, three of which are owned by another flow
+and tick themselves when that flow completes (documents on verification, the
+agreement on signing, inventory on submission) rather than being manually
+tickable. The room-condition inventory requires a photo for anything damaged or
+missing, and **locks permanently once submitted** — it's the reference both
+sides rely on at move-out.
+
+**Look around** — a drag-to-look panorama viewer with hotspots between spaces,
+and a to-scale top-down room planner where furniture can be dragged around to
+see what fits.
+
+### What needs a vendor
+
+Two things here are built up to a boundary I can't cross in code:
+
+- **KYC is manual review, not government verification.** Documents are checked
+  by a person at the office. Real Aadhaar verification needs a licensed
+  UIDAI AUA/KUA or DigiLocker OAuth. `kyc_records.provider` is `"manual"` and
+  the code is structured so a real provider slots in behind it.
+- **The signature is an in-app record, not a certified eSign.** It captures
+  intent with a name, drawing and timestamp. Legally-binding e-signing needs
+  Aadhaar eSign (NSDL/eMudhra) or equivalent. The app says this to the resident
+  rather than implying otherwise.
+
+And two are approximations rather than the full ask:
+
+- **The tour is a 2D panorama pan, not a 3D walkthrough.** It reads correctly
+  for a single room and needs no native module. Real 3D capture is a Matterport
+  -class vendor job. Panorama photos have to be supplied by the property —
+  `panoramaUri` is null until then and the viewer shows a placeholder.
+- **The room planner is top-down, not AR.** True plane-detection AR needs
+  ARKit/ARCore through a development build. The planner answers the same
+  question — will my things fit — and works on every phone today.
 
 ## Database
 
@@ -209,7 +294,7 @@ The API binds `0.0.0.0` so case 2 actually reaches it.
 There is a separate `uniliv` database on this machine with 141 tables and real
 data — the Uniliv **admin** app's database, including its own `residents`,
 `rooms`, `payments`, `attendance`, `complaints` and `laundry_batches`. This
-project deliberately uses its own `uniliv_thapar` database and does not touch
+project deliberately uses its own `thapar` database and does not touch
 it. The `adish` role has no read grant on those tables anyway.
 
 If this app should instead read from the admin database as the system of record,
@@ -228,11 +313,18 @@ tables onto those, and a decision about which side owns writes.
 - **Face recognition is a camera capture**, not identity matching. Fingerprint
   uses the phone's own sensor via `expo-local-authentication`, which proves the
   phone's owner is present, not which resident they are.
-- **The admin panel only covers registrations.** Moving maintenance, laundry,
-  complaint and visit requests through their statuses still has no UI — those
-  can only be changed in the database.
-- **No room allocation.** Approving a registration doesn't give the resident a
-  room or a payment plan.
+- **No AR or 3D tours, and no certified eSign or Aadhaar API** — see the
+  vendor boundaries under Onboarding above.
+- **No mess/menu admin.** The weekly menu, categories and laundry slots are
+  still hardcoded in `apps/api/src/data/catalog.ts`. Editing them without a
+  deploy means moving that reference data into the database first.
+- **No role gating.** Both seeded admins see everything. `AdminRole` exists on
+  the user but nothing branches on it yet; the design system's rule is that
+  role-gating hides rather than disables.
+- **No bulk actions or pagination.** Every list loads in full, which is fine at
+  hostel scale but not at thousands of rows.
+- **Attendance is read-only** for admins, and parents/guardians still have no
+  way in at all.
 - **No parent/guardian access**, though the notes call for parents to see
   attendance.
 - Web is not configured (`react-native-web` isn't installed); iOS and Android

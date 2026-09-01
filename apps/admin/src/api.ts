@@ -1,18 +1,38 @@
 import {
   ADMIN_ROUTES,
+  type AdminDashboard,
+  type AdminFeedbackEntry,
+  type AdminRequestDetail,
+  type AdminRequestSummary,
+  type AdminResidentDetail,
+  type AdminResidentSummary,
   type AdminSession,
   type AdminUser,
+  type AllocateRoomBody,
   type ApiError,
+  type PaymentPlanBody,
+  type PaymentSummary,
+  type RecordPaymentBody,
   type RegistrationCounts,
   type RegistrationDetail,
   type RegistrationSummary,
+  type RequestStatus,
   type ResidentAccountStatus,
+  type RoomDetails,
+  type ServiceRequestKind,
+  ADMIN_ONBOARDING_ROUTES,
+  type AdminOnboardingDetail,
+  type AdminOnboardingRow,
+  type IssueLeaseBody,
+  type KycState,
+  type LeaseAgreement,
+  type RoommateMatch,
 } from "@proj/shared";
 
 /** Vite proxies /api to the Express server in dev, so this stays same-origin. */
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
-const TOKEN_KEY = "uniliv.admin.token";
+const TOKEN_KEY = "thapar.admin.token";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -110,6 +130,88 @@ export const api = {
       method: "POST",
       body: { note },
     }),
+
+  /* dashboard */
+  dashboard: () => request<AdminDashboard>(ADMIN_ROUTES.dashboard),
+
+  /* requests */
+  requests: (filter: { kind?: ServiceRequestKind; status?: RequestStatus }) => {
+    const params = new URLSearchParams();
+    if (filter.kind) params.set("kind", filter.kind);
+    if (filter.status) params.set("status", filter.status);
+    const query = params.toString();
+    return request<AdminRequestSummary[]>(
+      query ? `${ADMIN_ROUTES.requests}?${query}` : ADMIN_ROUTES.requests
+    );
+  },
+
+  requestDetail: (kind: ServiceRequestKind, id: string) =>
+    request<AdminRequestDetail>(ADMIN_ROUTES.request(kind, id)),
+
+  setRequestStatus: (
+    kind: ServiceRequestKind,
+    id: string,
+    status: RequestStatus,
+    note?: string
+  ) =>
+    request<AdminRequestDetail>(ADMIN_ROUTES.requestStatus(kind, id), {
+      method: "POST",
+      body: { status, note },
+    }),
+
+  /* residents */
+  residents: (search?: string) =>
+    request<AdminResidentSummary[]>(
+      search
+        ? `${ADMIN_ROUTES.residents}?search=${encodeURIComponent(search)}`
+        : ADMIN_ROUTES.residents
+    ),
+
+  resident: (id: string) =>
+    request<AdminResidentDetail>(ADMIN_ROUTES.resident(id)),
+
+  allocateRoom: (id: string, body: AllocateRoomBody) =>
+    request<RoomDetails>(ADMIN_ROUTES.residentRoom(id), {
+      method: "PUT",
+      body,
+    }),
+
+  setPaymentPlan: (id: string, body: PaymentPlanBody) =>
+    request<PaymentSummary>(ADMIN_ROUTES.residentPlan(id), {
+      method: "PUT",
+      body,
+    }),
+
+  recordPayment: (id: string, body: RecordPaymentBody) =>
+    request<PaymentSummary>(ADMIN_ROUTES.residentPayments(id), {
+      method: "POST",
+      body,
+    }),
+
+  /* feedback */
+  feedback: () => request<AdminFeedbackEntry[]>(ADMIN_ROUTES.feedback),
+
+  /* onboarding */
+  onboardingQueue: () =>
+    request<AdminOnboardingRow[]>(ADMIN_ONBOARDING_ROUTES.queue),
+
+  onboardingDetail: (id: string) =>
+    request<AdminOnboardingDetail>(ADMIN_ONBOARDING_ROUTES.resident(id)),
+
+  reviewKyc: (id: string, decision: "verified" | "rejected", reason?: string) =>
+    request<KycState>(ADMIN_ONBOARDING_ROUTES.reviewKyc(id), {
+      method: "POST",
+      body: { decision, reason },
+    }),
+
+  issueLease: (id: string, body: IssueLeaseBody) =>
+    request<LeaseAgreement>(ADMIN_ONBOARDING_ROUTES.issueLease(id), {
+      method: "POST",
+      body,
+    }),
+
+  compatibility: (id: string) =>
+    request<RoommateMatch[]>(ADMIN_ONBOARDING_ROUTES.compatibility(id)),
 };
 
 export function messageOf(err: unknown): string {

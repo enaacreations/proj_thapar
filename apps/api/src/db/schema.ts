@@ -355,3 +355,133 @@ export const notifications = pgTable(
   (t) => [index("notifications_resident_idx").on(t.residentId, t.createdAt)]
 );
 
+
+/* ------------------------------------------------- onboarding & move-in */
+
+export const kycRecords = pgTable("kyc_records", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  status: text("status")
+    .$type<
+      "not_started" | "awaiting_documents" | "under_review" | "verified" | "rejected"
+    >()
+    .notNull()
+    .default("not_started"),
+  /** "manual" until a licensed Aadhaar AUA/KUA or DigiLocker is wired up. */
+  provider: text("provider").notNull().default("manual"),
+  reference: text("reference"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+});
+
+export const kycDocuments = pgTable(
+  "kyc_documents",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    type: text("type")
+      .$type<"aadhaar_front" | "aadhaar_back" | "pan" | "photo" | "other">()
+      .notNull(),
+    uri: text("uri").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("kyc_documents_resident_idx").on(t.residentId)]
+);
+
+export const leaseAgreements = pgTable(
+  "lease_agreements",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    status: text("status")
+      .$type<"none" | "issued" | "signed" | "cancelled">()
+      .notNull()
+      .default("issued"),
+    // Snapshot at issue time so the agreement stays true even if the room changes.
+    terms: jsonb("terms").$type<Record<string, unknown>>().notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    issuedBy: text("issued_by").notNull(),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
+    signerName: text("signer_name"),
+    /** SVG path data captured from the on-screen signature pad. */
+    signaturePath: text("signature_path"),
+  },
+  (t) => [index("lease_resident_idx").on(t.residentId, t.issuedAt)]
+);
+
+export const roommateProfiles = pgTable("roommate_profiles", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  sleepSchedule: text("sleep_schedule")
+    .$type<"early" | "late" | "flexible">()
+    .notNull(),
+  cleanliness: integer("cleanliness").notNull(),
+  noiseTolerance: integer("noise_tolerance").notNull(),
+  socialLevel: integer("social_level").notNull(),
+  studyLocation: text("study_location")
+    .$type<"in_room" | "outside" | "flexible">()
+    .notNull(),
+  guestFrequency: integer("guest_frequency").notNull(),
+  smoking: boolean("smoking").notNull().default(false),
+  foodPreference: text("food_preference")
+    .$type<"veg" | "non_veg" | "either">()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const moveInTasks = pgTable(
+  "move_in_tasks",
+  {
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    done: boolean("done").notNull().default(false),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("move_in_task_key").on(t.residentId, t.key)]
+);
+
+export const inventoryItems = pgTable(
+  "inventory_items",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    condition: text("condition")
+      .$type<"good" | "fair" | "damaged" | "missing">()
+      .notNull(),
+    notes: text("notes").notNull().default(""),
+    photoUris: jsonb("photo_uris").$type<string[]>().notNull().default([]),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("inventory_resident_idx").on(t.residentId)]
+);
+
+export const moveInState = pgTable("move_in_state", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  /** Once set, the inventory is frozen — it's the move-out reference. */
+  inventorySubmittedAt: timestamp("inventory_submitted_at", {
+    withTimezone: true,
+  }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});

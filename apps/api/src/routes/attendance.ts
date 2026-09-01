@@ -63,7 +63,7 @@ attendanceRouter.post("/mark", async (req, res) => {
     latitude: body.latitude,
     longitude: body.longitude,
     locationLabel: withinGeofence
-      ? "Uniliv Thapar, Block B"
+      ? "Thapar, Block B"
       : `${Math.round(distance)} m from hostel`,
     photoUri: body.photoUri ?? null,
     withinGeofence,

@@ -17,6 +17,8 @@ import {
 import { db } from "../db/client";
 import * as t from "../db/schema";
 import * as admin from "../data/admin";
+import { adminOpsRouter } from "./admin-ops";
+import { adminOnboardingRouter } from "./admin-onboarding";
 
 export const adminRouter: Router = Router();
 
@@ -68,6 +70,10 @@ adminRouter.post("/auth/logout", requireAdmin, async (req, res) => {
 adminRouter.get("/auth/me", requireAdmin, (req, res) => {
   res.json(adminOf(req));
 });
+
+// Everything past this point needs a signed-in admin.
+adminRouter.use(requireAdmin, adminOpsRouter);
+adminRouter.use(requireAdmin, adminOnboardingRouter);
 
 /* --------------------------------------------------------- registrations */
 

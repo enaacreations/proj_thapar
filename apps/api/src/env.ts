@@ -21,6 +21,6 @@ export const env = {
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
   databaseUrl: required(
     "DATABASE_URL",
-    "postgres://localhost:5432/uniliv_thapar"
+    "postgres://localhost:5432/thapar"
   ),
 } as const;

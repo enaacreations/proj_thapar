@@ -21,6 +21,7 @@ import { visitsRouter } from "./routes/visits";
 import { attendanceRouter } from "./routes/attendance";
 import { feedbackRouter } from "./routes/feedback";
 import { messRouter, notificationsRouter, requestsRouter } from "./routes/misc";
+import { onboardingRouter } from "./routes/onboarding";
 
 const notFound: RequestHandler = (req) => {
   throw HttpError.notFound(`Cannot ${req.method} ${req.path}`);
@@ -70,6 +71,7 @@ export function createApp(): Express {
   app.use("/api/mess", requireAuth, messRouter);
   app.use("/api/requests", requireAuth, requestsRouter);
   app.use("/api/notifications", requireAuth, notificationsRouter);
+  app.use("/api/onboarding", requireAuth, onboardingRouter);
 
   app.use(notFound);
   app.use(errorHandler);

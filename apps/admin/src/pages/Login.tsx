@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth";
 import { messageOf } from "../api";
+import { SCOPE } from "../modules";
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -24,16 +25,17 @@ export default function Login() {
 
   return (
     <div className="login-wrap">
-      <form className="card login-card" onSubmit={submit}>
+      <form className="card login-card animate-fade-up" onSubmit={submit}>
         <div className="brand">
           <span className="brand-mark">U</span>
-          <span>Uniliv Admin</span>
+          <span className="brand-word">THAPAR</span>
+          <span className="brand-sub">Admin</span>
         </div>
 
         <div className="stack-sm">
           <h1>Sign in</h1>
           <p className="muted small">
-            Review and approve resident registrations.
+            {SCOPE} · review registrations, requests and move-ins.
           </p>
         </div>
 
@@ -45,7 +47,7 @@ export default function Login() {
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@uniliv.test"
+            placeholder="you@thapar.test"
             required
           />
         </div>

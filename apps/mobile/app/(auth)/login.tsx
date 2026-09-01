@@ -97,7 +97,7 @@ export default function Login() {
     }
 
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Sign in to Uniliv",
+      promptMessage: "Sign in to Thapar",
       fallbackLabel: "Use MPIN",
     });
 
