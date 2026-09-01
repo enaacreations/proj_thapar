@@ -1,0 +1,357 @@
+import {
+  boolean,
+  date,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgSequence,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import type {
+  AttendanceMethod,
+  LaundryItem,
+  MealType,
+  PaymentMode,
+  RequestStatus,
+  ResidentAccountStatus,
+  VisitorRelation,
+} from "@proj/shared";
+
+/**
+ * Schema for the resident app. Status/enum columns are stored as text and typed
+ * with `$type<>()` so the union lives in @proj/shared and stays the single
+ * source of truth for both sides.
+ */
+
+/**
+ * Human-readable request ids (MNT-1042, LDY-1043…) come off one shared
+ * sequence, so a number is never reused across modules and concurrent inserts
+ * can't collide.
+ */
+export const requestSeq = pgSequence("request_seq", { startWith: 1041 });
+
+export const residents = pgTable(
+  "residents",
+  {
+    id: text("id").primaryKey(),
+    fullName: text("full_name").notNull(),
+    dob: date("dob").notNull(),
+    gender: text("gender").$type<"male" | "female" | "other">().notNull(),
+    kycType: text("kyc_type").$type<"pan" | "aadhaar">().notNull(),
+    kycNumber: text("kyc_number").notNull(),
+    mobile: text("mobile").notNull(),
+    accountStatus: text("account_status")
+      .$type<ResidentAccountStatus>()
+      .notNull()
+      .default("pending_approval"),
+    // Demo-grade: replace with an Argon2/bcrypt hash before any real use.
+    mpin: text("mpin"),
+    biometricEnabled: boolean("biometric_enabled").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+
+    // Who approved or rejected this registration, when, and why.
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: text("reviewed_by"),
+    reviewNote: text("review_note"),
+  },
+  (t) => [
+    uniqueIndex("residents_mobile_key").on(t.mobile),
+    index("residents_status_idx").on(t.accountStatus, t.createdAt),
+  ]
+);
+
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    role: text("role").$type<"ops_excellence" | "warden">().notNull(),
+    /** scrypt: "<salt-hex>:<derived-key-hex>". Never the password itself. */
+    passwordHash: text("password_hash").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("admin_users_email_key").on(t.email)]
+);
+
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    // Opaque random token, not a guessable id like the resident tokens.
+    token: text("token").primaryKey(),
+    adminId: text("admin_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("admin_sessions_admin_idx").on(t.adminId)]
+);
+
+export const otps = pgTable("otps", {
+  mobile: text("mobile").primaryKey(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const rooms = pgTable("rooms", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  roomNumber: text("room_number").notNull(),
+  floor: text("floor").notNull(),
+  wing: text("wing").notNull(),
+  buildingName: text("building_name").notNull(),
+  propertyName: text("property_name").notNull(),
+  propertyAddress: text("property_address").notNull(),
+  roomType: text("room_type").notNull(),
+  occupancy: text("occupancy").notNull(),
+});
+
+export const paymentPlans = pgTable("payment_plans", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  plan: text("plan").notNull(),
+  paidUpTo: date("paid_up_to").notNull(),
+  nextDueOn: date("next_due_on"),
+  // Rupees, stored in whole units — no sub-rupee amounts exist in this domain.
+  nextDueAmount: integer("next_due_amount"),
+});
+
+export const paymentEntries = pgTable(
+  "payment_entries",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    paidOn: date("paid_on").notNull(),
+    amount: integer("amount").notNull(),
+    mode: text("mode").$type<PaymentMode>().notNull(),
+    periodFrom: date("period_from").notNull(),
+    periodTo: date("period_to").notNull(),
+    receiptNo: text("receipt_no").notNull(),
+  },
+  (t) => [index("payment_entries_resident_idx").on(t.residentId)]
+);
+
+export const foodPreferences = pgTable("food_preferences", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  breakfast: boolean("breakfast").notNull().default(true),
+  lunch: boolean("lunch").notNull().default(true),
+  snacks: boolean("snacks").notNull().default(true),
+  dinner: boolean("dinner").notNull().default(true),
+  pauseFrom: date("pause_from"),
+  pauseTo: date("pause_to"),
+});
+
+export const maintenanceRequests = pgTable(
+  "maintenance_requests",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: text("status").$type<RequestStatus>().notNull(),
+    categoryId: text("category_id").notNull(),
+    categoryLabel: text("category_label").notNull(),
+    subCategoryId: text("sub_category_id").notNull(),
+    subCategoryLabel: text("sub_category_label").notNull(),
+    remarks: text("remarks").notNull(),
+    photoUris: jsonb("photo_uris").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("maintenance_resident_idx").on(t.residentId, t.createdAt)]
+);
+
+export const laundryRequests = pgTable(
+  "laundry_requests",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: text("status").$type<RequestStatus>().notNull(),
+    // Line items are only ever read as a whole bag, so jsonb beats a join table.
+    items: jsonb("items").$type<LaundryItem[]>().notNull(),
+    totalPieces: integer("total_pieces").notNull(),
+    pickupSlot: text("pickup_slot").notNull(),
+    photoUris: jsonb("photo_uris").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("laundry_resident_idx").on(t.residentId, t.createdAt)]
+);
+
+export const complaints = pgTable(
+  "complaints",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: text("status").$type<RequestStatus>().notNull(),
+    categoryId: text("category_id").notNull(),
+    categoryLabel: text("category_label").notNull(),
+    subCategoryId: text("sub_category_id").notNull(),
+    subCategoryLabel: text("sub_category_label").notNull(),
+    remarks: text("remarks").notNull(),
+    /** Free-form on purpose: may point at a laundry or maintenance request. */
+    againstRequestId: text("against_request_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("complaints_resident_idx").on(t.residentId, t.createdAt)]
+);
+
+export const visitRequests = pgTable(
+  "visit_requests",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: text("status").$type<RequestStatus>().notNull(),
+    visitorName: text("visitor_name").notNull(),
+    relation: text("relation").$type<VisitorRelation>().notNull(),
+    visitDate: date("visit_date").notNull(),
+    durationHours: integer("duration_hours").notNull(),
+    foodRequired: boolean("food_required").notNull().default(false),
+    foodSelections: jsonb("food_selections")
+      .$type<{ meal: MealType; items: string[] }[]>()
+      .notNull()
+      .default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("visits_resident_idx").on(t.residentId, t.createdAt)]
+);
+
+/** One timeline table for every request kind — same shape, same queries. */
+export const trackingEvents = pgTable(
+  "tracking_events",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    requestId: text("request_id").notNull(),
+    status: text("status").$type<RequestStatus>().notNull(),
+    note: text("note").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tracking_request_idx").on(t.requestId, t.at)]
+);
+
+export const attendanceRecords = pgTable(
+  "attendance_records",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    markedAt: timestamp("marked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    method: text("method").$type<AttendanceMethod>().notNull(),
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    locationLabel: text("location_label").notNull(),
+    photoUri: text("photo_uri"),
+    withinGeofence: boolean("within_geofence").notNull(),
+  },
+  // One mark per resident per day is a hard rule, so the DB enforces it too.
+  (t) => [uniqueIndex("attendance_resident_date_key").on(t.residentId, t.date)]
+);
+
+export const feedbackEntries = pgTable(
+  "feedback_entries",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    categoryId: text("category_id").notNull(),
+    categoryLabel: text("category_label").notNull(),
+    subCategoryId: text("sub_category_id").notNull(),
+    subCategoryLabel: text("sub_category_label").notNull(),
+    rating: integer("rating").notNull(),
+    remarks: text("remarks").notNull().default(""),
+    photoUris: jsonb("photo_uris").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("feedback_resident_idx").on(t.residentId, t.createdAt)]
+);
+
+export const messEntries = pgTable(
+  "mess_entries",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    meal: text("meal").$type<MealType>().notNull(),
+    method: text("method").$type<AttendanceMethod>().notNull(),
+    enteredAt: timestamp("entered_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("mess_resident_idx").on(t.residentId, t.enteredAt)]
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    kind: text("kind")
+      .$type<"info" | "success" | "warning" | "danger">()
+      .notNull(),
+    href: text("href"),
+    read: boolean("read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("notifications_resident_idx").on(t.residentId, t.createdAt)]
+);
+

@@ -1,0 +1,571 @@
+/* Uniliv "Sunset" theme — values copied verbatim from the design system spec. */
+
+:root {
+  --ink: #241a15;
+  --accent: #e8602c;
+  --accent-strong: #c24a1c;
+  --pop: #7c5cff;
+  --success: #157f5b;
+  --warning: #9a6206;
+  --danger: #c73b33;
+  --info: #3666cf;
+  --success-bg: #e7f3ee;
+  --warning-bg: #f7eedd;
+  --danger-bg: #f9e9e8;
+  --info-bg: #e9effa;
+  --surface: #fcf9f6;
+  --card: #ffffff;
+  --border: #efe6de;
+  --muted: #7c6e64;
+  --muted-bg: #f4ede6;
+  --badge-outline: #e0d3c7;
+  --secondary: #f4ede6;
+  --secondary-foreground: #3a2c24;
+  --secondary-border: #e6d9ce;
+  --brand-gradient: linear-gradient(120deg, #ff9a3d 0%, #f2603c 50%, #c2459a 100%);
+  --radius: 0.625rem;
+
+  --sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.dark {
+  --ink: #f2e9e3;
+  --accent: #f2703a;
+  --accent-strong: #ff8a52;
+  --pop: #9b82ff;
+  --success: #34c58a;
+  --warning: #e0a33a;
+  --danger: #f0857c;
+  --info: #6fa0f0;
+  --success-bg: #12291f;
+  --warning-bg: #2e2410;
+  --danger-bg: #331715;
+  --info-bg: #14213a;
+  --surface: #181210;
+  --card: #221a16;
+  --border: #322620;
+  --muted: #a99c92;
+  --muted-bg: #2a201b;
+  --badge-outline: #3a2c24;
+  --secondary: #2a201b;
+  --secondary-foreground: #e9ded5;
+  --secondary-border: #3a2c24;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(232, 96, 44, 0.22);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  /* Every heading carries -0.012em tracking. */
+  letter-spacing: -0.012em;
+  margin: 0;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 13px;
+}
+.caption {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--brand-gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(232, 96, 44, 0.12);
+  color: var(--accent-strong);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.page {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1;
+}
+
+/* ------------------------------------------------------------------ cards */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  /* Flat by design: hairline borders separate surfaces, never shadows. */
+}
+
+.card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* ----------------------------------------------------------------- inputs */
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  /* 16px minimum stops iOS zooming the field on focus. */
+  font-size: 16px;
+  font-family: var(--sans);
+  padding: 10px 14px;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 0 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #fff;
+  transition: filter 150ms ease-out;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.btn:active:not(:disabled) {
+  filter: brightness(0.9);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.secondary {
+  background: var(--secondary);
+  color: var(--ink);
+  border-color: var(--secondary-border);
+}
+.btn.outline {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--border);
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--ink);
+}
+.btn.destructive {
+  background: var(--danger);
+  color: #fff;
+}
+.btn.block {
+  width: 100%;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ----------------------------------------------------------------- badges */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Tinted style: semantic colour at 12% as background, full colour as text. */
+.badge.pending {
+  background: rgba(154, 98, 6, 0.12);
+  color: var(--warning);
+}
+.badge.approved {
+  background: rgba(21, 127, 91, 0.12);
+  color: var(--success);
+}
+.badge.rejected {
+  background: rgba(199, 59, 51, 0.12);
+  color: var(--danger);
+}
+.badge.neutral {
+  background: var(--muted-bg);
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------------- tabs */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--muted-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  width: fit-content;
+}
+
+.tab {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 38px;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------- list */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.row-card:hover {
+  background: var(--muted-bg);
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.kv {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.kv:last-child {
+  border-bottom: 0;
+}
+.kv dt {
+  width: 180px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.kv dd {
+  margin: 0;
+  flex: 1;
+}
+
+dl {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------ empty/states */
+
+.center-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: var(--muted-bg);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+/* ------------------------------------------------------------------ modal */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ------------------------------------------------------------------ toast */
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  max-width: 420px;
+  /* Floating elements are the one place a soft shadow is allowed. */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ------------------------------------------------------------------ login */
+
+.login-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  .kv {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .kv dt {
+    width: auto;
+  }
+  .page {
+    padding: 16px;
+  }
+}

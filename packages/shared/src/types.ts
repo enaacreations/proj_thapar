@@ -1,0 +1,473 @@
+/**
+ * Contracts shared between the Express API and the React Native app.
+ * Changing anything here surfaces as a type error on both sides.
+ */
+
+/* ------------------------------------------------------------------ common */
+
+export interface ApiError {
+  error: string;
+  message: string;
+}
+
+export interface HealthResponse {
+  status: "ok";
+  uptime: number;
+  timestamp: string;
+}
+
+/** Every request/complaint in the app shares this lifecycle. */
+export type RequestStatus =
+  | "submitted"
+  | "in_progress"
+  | "resolved"
+  | "rejected"
+  | "cancelled";
+
+export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
+  submitted: "Submitted",
+  in_progress: "In progress",
+  resolved: "Resolved",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};
+
+/** One entry in a request's audit trail — drives the tracking timeline. */
+export interface TrackingEvent {
+  status: RequestStatus;
+  note: string;
+  at: string;
+}
+
+export interface CategoryOption {
+  id: string;
+  label: string;
+  subCategories: { id: string; label: string }[];
+}
+
+/* -------------------------------------------------------------------- auth */
+
+export type ResidentAccountStatus = "pending_approval" | "approved" | "rejected";
+
+export interface RegistrationBody {
+  fullName: string;
+  dob: string;
+  gender: "male" | "female" | "other";
+  kycType: "pan" | "aadhaar";
+  kycNumber: string;
+  mobile: string;
+}
+
+export interface RegistrationResponse {
+  requestId: string;
+  status: ResidentAccountStatus;
+  message: string;
+}
+
+export interface SendOtpBody {
+  mobile: string;
+}
+
+export interface SendOtpResponse {
+  /** Dev-only echo so the app can prefill; a real gateway would omit this. */
+  devOtp: string;
+  expiresInSeconds: number;
+}
+
+export interface VerifyOtpBody {
+  mobile: string;
+  otp: string;
+}
+
+export interface AuthSession {
+  token: string;
+  residentId: string;
+  /** False on first-ever login — the app then runs MPIN setup. */
+  mpinSet: boolean;
+}
+
+export interface SetMpinBody {
+  mpin: string;
+  biometricEnabled: boolean;
+}
+
+export interface MpinLoginBody {
+  mobile: string;
+  mpin: string;
+}
+
+/* ----------------------------------------------------------------- profile */
+
+export interface MaskedValue {
+  /** Safe to render directly, e.g. "XXXXXX1234". */
+  masked: string;
+  /** Full value; only sent when the resident taps "unmask". */
+  full?: string;
+}
+
+export interface ResidentProfile {
+  id: string;
+  fullName: string;
+  age: number;
+  gender: "male" | "female" | "other";
+  dob: MaskedValue;
+  kycType: "pan" | "aadhaar";
+  kycNumber: MaskedValue;
+  mobile: string;
+  photoUrl: string | null;
+  accountStatus: ResidentAccountStatus;
+}
+
+/* -------------------------------------------------------------------- room */
+
+export interface RoomDetails {
+  roomNumber: string;
+  floor: string;
+  wing: string;
+  buildingName: string;
+  propertyName: string;
+  propertyAddress: string;
+  roomType: string;
+  occupancy: string;
+}
+
+/* ---------------------------------------------------------------- payments */
+
+export type PaymentMode = "cash" | "upi" | "card" | "netbanking";
+
+export interface PaymentLedgerEntry {
+  id: string;
+  paidOn: string;
+  amount: number;
+  mode: PaymentMode;
+  periodFrom: string;
+  periodTo: string;
+  receiptNo: string;
+}
+
+export interface PaymentSummary {
+  plan: string;
+  paidUpTo: string;
+  totalPaid: number;
+  nextDueOn: string | null;
+  nextDueAmount: number | null;
+  entries: PaymentLedgerEntry[];
+}
+
+/* -------------------------------------------------------------------- food */
+
+export type MealType = "breakfast" | "lunch" | "snacks" | "dinner";
+
+export const MEAL_TYPES: MealType[] = [
+  "breakfast",
+  "lunch",
+  "snacks",
+  "dinner",
+];
+
+export const MEAL_LABELS: Record<MealType, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  snacks: "Snacks",
+  dinner: "Dinner",
+};
+
+export interface MenuItem {
+  name: string;
+  veg: boolean;
+}
+
+export interface DayMenu {
+  date: string;
+  meals: Record<MealType, { servingWindow: string; items: MenuItem[] }>;
+}
+
+/** Which meals the resident is currently opted into. */
+export type MealOptIn = Record<MealType, boolean>;
+
+export interface UpdateMealOptInBody {
+  meals: Partial<MealOptIn>;
+}
+
+export interface FoodPause {
+  from: string;
+  to: string;
+}
+
+export interface FoodPreferences {
+  optIn: MealOptIn;
+  pause: FoodPause | null;
+}
+
+export interface PauseFoodBody {
+  from: string;
+  to: string;
+}
+
+/* ------------------------------------------------- requests (shared shape) */
+
+/** Maintenance, laundry, complaints and visits all surface as one of these. */
+export type ServiceRequestKind =
+  | "maintenance"
+  | "laundry"
+  | "complaint"
+  | "visit";
+
+export interface ServiceRequestSummary {
+  id: string;
+  kind: ServiceRequestKind;
+  title: string;
+  status: RequestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------- maintenance */
+
+export interface MaintenanceRequest extends ServiceRequestSummary {
+  kind: "maintenance";
+  categoryId: string;
+  categoryLabel: string;
+  subCategoryId: string;
+  subCategoryLabel: string;
+  remarks: string;
+  photoUris: string[];
+  timeline: TrackingEvent[];
+}
+
+export interface CreateMaintenanceBody {
+  categoryId: string;
+  subCategoryId: string;
+  remarks: string;
+  photoUris?: string[];
+}
+
+/* ----------------------------------------------------------------- laundry */
+
+export type ClothingType =
+  | "shirt"
+  | "trouser"
+  | "tshirt"
+  | "jeans"
+  | "bedsheet"
+  | "towel"
+  | "other";
+
+export const CLOTHING_LABELS: Record<ClothingType, string> = {
+  shirt: "Shirt",
+  trouser: "Trouser",
+  tshirt: "T-shirt",
+  jeans: "Jeans",
+  bedsheet: "Bedsheet",
+  towel: "Towel",
+  other: "Other",
+};
+
+export interface LaundryItem {
+  type: ClothingType;
+  count: number;
+  pressing: boolean;
+}
+
+export interface LaundryRequest extends ServiceRequestSummary {
+  kind: "laundry";
+  items: LaundryItem[];
+  totalPieces: number;
+  pickupSlot: string;
+  /** Live capture of the clothes handed over — evidence for disputes. */
+  photoUris: string[];
+  timeline: TrackingEvent[];
+}
+
+export interface CreateLaundryBody {
+  items: LaundryItem[];
+  pickupSlot: string;
+  photoUris?: string[];
+}
+
+/* -------------------------------------------------------------- complaints */
+
+export interface Complaint extends ServiceRequestSummary {
+  kind: "complaint";
+  categoryId: string;
+  categoryLabel: string;
+  subCategoryId: string;
+  subCategoryLabel: string;
+  remarks: string;
+  /** Set when the complaint was raised against a laundry/maintenance request. */
+  againstRequestId: string | null;
+  timeline: TrackingEvent[];
+}
+
+export interface CreateComplaintBody {
+  categoryId: string;
+  subCategoryId: string;
+  remarks: string;
+  againstRequestId?: string | null;
+}
+
+/* ------------------------------------------------------------------ visits */
+
+export type VisitorRelation =
+  | "parent"
+  | "guardian"
+  | "sibling"
+  | "relative"
+  | "friend";
+
+export const RELATION_LABELS: Record<VisitorRelation, string> = {
+  parent: "Parent",
+  guardian: "Guardian",
+  sibling: "Sibling",
+  relative: "Relative",
+  friend: "Friend",
+};
+
+export interface VisitRequest extends ServiceRequestSummary {
+  kind: "visit";
+  visitorName: string;
+  relation: VisitorRelation;
+  visitDate: string;
+  durationHours: number;
+  foodRequired: boolean;
+  /** Chosen a day before the visit, per the mess cut-off. */
+  foodSelections: { meal: MealType; items: string[] }[];
+  timeline: TrackingEvent[];
+}
+
+export interface CreateVisitBody {
+  visitorName: string;
+  relation: VisitorRelation;
+  visitDate: string;
+  durationHours: number;
+  foodRequired: boolean;
+  foodSelections?: { meal: MealType; items: string[] }[];
+}
+
+/* -------------------------------------------------------------- attendance */
+
+export type AttendanceMethod = "facial" | "biometric" | "qr";
+
+export interface AttendanceRecord {
+  id: string;
+  date: string;
+  markedAt: string;
+  method: AttendanceMethod;
+  latitude: number;
+  longitude: number;
+  locationLabel: string;
+  photoUri: string | null;
+  withinGeofence: boolean;
+}
+
+export interface MarkAttendanceBody {
+  method: AttendanceMethod;
+  latitude: number;
+  longitude: number;
+  photoUri?: string | null;
+}
+
+export interface AttendanceSummary {
+  todayMarked: boolean;
+  presentDays: number;
+  totalDays: number;
+  streak: number;
+  records: AttendanceRecord[];
+}
+
+/* ---------------------------------------------------------------- feedback */
+
+export interface FeedbackEntry {
+  id: string;
+  categoryId: string;
+  categoryLabel: string;
+  subCategoryId: string;
+  subCategoryLabel: string;
+  rating: number;
+  remarks: string;
+  photoUris: string[];
+  createdAt: string;
+}
+
+export interface CreateFeedbackBody {
+  categoryId: string;
+  subCategoryId: string;
+  /** 1 (lowest) to 5 (highest). */
+  rating: number;
+  remarks: string;
+  photoUris?: string[];
+}
+
+/* -------------------------------------------------------------- mess entry */
+
+export interface MessEntryBody {
+  method: AttendanceMethod;
+  meal: MealType;
+}
+
+export interface MessEntryRecord {
+  id: string;
+  meal: MealType;
+  method: AttendanceMethod;
+  enteredAt: string;
+}
+
+/* --------------------------------------------------------- notifications */
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+  kind: "info" | "success" | "warning" | "danger";
+  /** Deep-link path inside the app, e.g. "/maintenance/REQ-1042". */
+  href: string | null;
+}
+
+/* ------------------------------------------------------------------ routes */
+
+export const API_ROUTES = {
+  health: "/api/health",
+
+  register: "/api/auth/register",
+  sendOtp: "/api/auth/otp/send",
+  verifyOtp: "/api/auth/otp/verify",
+  setMpin: "/api/auth/mpin",
+  mpinLogin: "/api/auth/mpin/login",
+
+  profile: "/api/me/profile",
+  profileUnmask: (field: "dob" | "kyc") => `/api/me/profile/unmask/${field}`,
+  room: "/api/me/room",
+  payments: "/api/me/payments",
+
+  menu: "/api/food/menu",
+  foodPreferences: "/api/food/preferences",
+  foodPause: "/api/food/pause",
+
+  maintenanceCategories: "/api/maintenance/categories",
+  maintenance: "/api/maintenance",
+  maintenanceById: (id: string) => `/api/maintenance/${id}`,
+
+  laundry: "/api/laundry",
+  laundryById: (id: string) => `/api/laundry/${id}`,
+
+  complaintCategories: "/api/complaints/categories",
+  complaints: "/api/complaints",
+  complaintById: (id: string) => `/api/complaints/${id}`,
+
+  visits: "/api/visits",
+  visitById: (id: string) => `/api/visits/${id}`,
+
+  attendance: "/api/attendance",
+  markAttendance: "/api/attendance/mark",
+
+  feedbackCategories: "/api/feedback/categories",
+  feedback: "/api/feedback",
+
+  messEntry: "/api/mess/entry",
+
+  requests: "/api/requests",
+  notifications: "/api/notifications",
+  notificationRead: (id: string) => `/api/notifications/${id}/read`,
+} as const;
