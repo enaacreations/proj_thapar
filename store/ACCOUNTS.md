@@ -20,6 +20,18 @@ Everything a future release needs, so nothing has to be re-derived. Secrets are
 
 App Store Connect: https://appstoreconnect.apple.com/apps/6807443425
 
+### TestFlight
+
+| | |
+| --- | --- |
+| Build submitted | 1.0.0 (5) — **Waiting for Review** (Beta App Review) |
+| Internal group | **Core members** — surbhichordia16@gmail.com invited; usable now, no review |
+| External group | **Demo testers** — public link enabled |
+| Public link | https://testflight.apple.com/join/q9veBfrw |
+
+The public link only admits testers once Apple approves the build; the internal
+group works immediately. Beta App Review is typically 24–48 hours.
+
 ## Google Play
 
 | | |
@@ -35,7 +47,17 @@ App Store Connect: https://appstoreconnect.apple.com/apps/6807443425
 
 Play Console: https://play.google.com/console/u/1/developers/9185099929039773840/app/4973650883026939770/app-dashboard
 
-Tester opt-in link (once the internal release is live):
+### Release state
+
+| | |
+| --- | --- |
+| Internal testing | **Live** — 1.0.0 (versionCode 3), Core Members (33 users) |
+| Closed testing (Alpha) | **In review** — same build, India, Core Members |
+| Store listing | Submitted for review (icon, feature graphic, 8 screenshots, descriptions) |
+| App content | All 9 declarations completed |
+| Production | Blocked by Google policy — see below |
+
+Tester opt-in link (works now for internal testers):
 https://play.google.com/apps/testing/com.projthapar.app
 
 > This is a **personal** Play account, so promoting to production later needs a
