@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .expo .turbo",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eas-build-post-install": "cd ../.. && npm run build --workspace @proj/shared"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
