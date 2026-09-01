@@ -1,4 +1,5 @@
 import {
+  Brush,
   CalendarDays,
   CalendarHeart,
   ClipboardList,
@@ -40,14 +41,30 @@ export interface ModulePage {
   count?: (d: AdminDashboard) => number | null;
 }
 
+/**
+ * Launcher tiles are the one place the console goes colourful, so each module
+ * owns a fixed identity: `[gradFrom, gradTo, tint, tint2]`. The first pair
+ * strokes the icon badge, the second washes the tile face. Literal hex rather
+ * than tokens — these are per-module brand colours, not semantic roles, and
+ * they read the same in both themes because every use is mixed into `--card`.
+ */
+export type TileGradient = readonly [
+  gradFrom: string,
+  gradTo: string,
+  tint: string,
+  tint2: string,
+];
+
 export interface AppModule {
   key: string;
   name: string;
   description: string;
   path: string;
   icon: LucideIcon;
-  /** Token name used for the tile tint and module icon. */
+  /** Semantic token behind the sidebar's module chip, at 12% alpha. */
   tint: string;
+  /** Launcher tile identity. See {@link TileGradient}. */
+  gradient: TileGradient;
   /** Roles that may open this module. Hidden, never disabled, for everyone else. */
   roles: AdminRole[];
   pages: ModulePage[];
@@ -99,6 +116,7 @@ export const MODULES: AppModule[] = [
     path: "/requests",
     icon: ClipboardList,
     tint: "--warning",
+    gradient: ["#FF9A3D", "#F2603C", "#FF9A3D", "#C2459A"],
     roles: ALL_ROLES,
     pages: [
       {
@@ -121,6 +139,7 @@ export const MODULES: AppModule[] = [
     path: "/registrations",
     icon: UserCheck,
     tint: "--accent",
+    gradient: ["#3666CF", "#6FA0F0", "#6FA0F0", "#7C5CFF"],
     roles: ALL_ROLES,
     pages: [
       {
@@ -142,6 +161,7 @@ export const MODULES: AppModule[] = [
     path: "/onboarding",
     icon: UserPlus,
     tint: "--info",
+    gradient: ["#0EA5A5", "#3666CF", "#2CB9B9", "#3666CF"],
     roles: ALL_ROLES,
     pages: [
       { query: "", label: "Everyone moving in", group: "tasks" },
@@ -157,6 +177,7 @@ export const MODULES: AppModule[] = [
     path: "/maintenance",
     icon: Wrench,
     tint: "--warning",
+    gradient: ["#D97706", "#E8602C", "#E5A13D", "#E8602C"],
     roles: ALL_ROLES,
     pages: statusPages("maintenance"),
     nudge: (d) =>
@@ -171,6 +192,7 @@ export const MODULES: AppModule[] = [
     path: "/laundry",
     icon: Sparkles,
     tint: "--info",
+    gradient: ["#0891B2", "#0EA5A5", "#22B8CF", "#0EA5A5"],
     roles: ALL_ROLES,
     pages: [
       ...statusPages("laundry", "Open pickups"),
@@ -186,6 +208,7 @@ export const MODULES: AppModule[] = [
     path: "/complaints",
     icon: MessageSquareWarning,
     tint: "--danger",
+    gradient: ["#C73B33", "#E85D75", "#E0605A", "#C2459A"],
     roles: ALL_ROLES,
     pages: statusPages("complaint"),
     nudge: (d) =>
@@ -198,6 +221,7 @@ export const MODULES: AppModule[] = [
     path: "/visitors",
     icon: CalendarHeart,
     tint: "--pop",
+    gradient: ["#7C5CFF", "#C2459A", "#9B82FF", "#C2459A"],
     roles: ALL_ROLES,
     pages: statusPages("visit"),
     nudge: (d) =>
@@ -210,6 +234,7 @@ export const MODULES: AppModule[] = [
     path: "/food",
     icon: UtensilsCrossed,
     tint: "--accent",
+    gradient: ["#F2603C", "#C2459A", "#F2703A", "#C2459A"],
     roles: ALL_ROLES,
     pages: [
       { query: "?view=guests", label: "Guest meals", group: "requests" },
@@ -222,8 +247,9 @@ export const MODULES: AppModule[] = [
     name: "Housekeeping",
     description: "Cleans booked, and who is out doing them",
     path: "/housekeeping",
-    icon: Sparkles,
+    icon: Brush,
     tint: "--success",
+    gradient: ["#16A34A", "#0EA5A5", "#34C58A", "#0EA5A5"],
     roles: ALL_ROLES,
     pages: [{ query: "", label: "Booked cleans", group: "tasks" }],
   },
@@ -234,6 +260,7 @@ export const MODULES: AppModule[] = [
     path: "/spaces",
     icon: CalendarDays,
     tint: "--pop",
+    gradient: ["#C2459A", "#7C5CFF", "#D06AB0", "#9B82FF"],
     roles: ALL_ROLES,
     pages: [{ query: "", label: "Space bookings", group: "tasks" }],
   },
@@ -244,6 +271,7 @@ export const MODULES: AppModule[] = [
     path: "/residents",
     icon: Users,
     tint: "--success",
+    gradient: ["#E85D75", "#C2459A", "#E85D75", "#C2459A"],
     roles: ALL_ROLES,
     pages: [
       {
@@ -276,6 +304,7 @@ export const MODULES: AppModule[] = [
     path: "/finance",
     icon: Wallet,
     tint: "--success",
+    gradient: ["#157F5B", "#3666CF", "#34A57F", "#3666CF"],
     roles: ALL_ROLES,
     pages: [
       {
@@ -304,6 +333,7 @@ export const MODULES: AppModule[] = [
     path: "/feedback",
     icon: Star,
     tint: "--pop",
+    gradient: ["#FF9A3D", "#C2459A", "#FFB25C", "#C2459A"],
     roles: ALL_ROLES,
     pages: [{ query: "", label: "All feedback", group: "requests" }],
     nudge: (d) => (d.averageRating ? `${d.averageRating} average` : null),

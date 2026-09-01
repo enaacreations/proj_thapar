@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, Inbox } from "lucide-react";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 import type {
   AdminRequestSummary,
   RequestStatus,
@@ -54,7 +54,7 @@ const NOUN: Record<ServiceRequestKind | "all", string> = {
 };
 
 const LEDE: Record<ServiceRequestKind | "all", string> = {
-  all: "Everything residents have raised, across every module.",
+  all: "One queue across every module, for a morning sweep.",
   maintenance: "Repairs residents have reported in their rooms and common areas.",
   laundry: "Laundry pickups and drop-offs residents have booked.",
   complaint: "Complaints residents have raised. Reply with what happens next.",
@@ -115,7 +115,13 @@ export default function Requests({ kind }: { kind?: ServiceRequestKind }) {
   return (
     <div className="stack animate-fade-up" style={{ gap: 20 }}>
       <PageHeader
-        title={`${STATUS_COPY[status]} ${NOUN[scope]}`}
+        // The default page is the whole queue, so it's named for what it is
+        // rather than "Open requests", which reads like one more filter.
+        title={
+          status === "open" && scope === "all"
+            ? "All requests"
+            : `${STATUS_COPY[status]} ${NOUN[scope]}`
+        }
         description={LEDE[scope]}
       />
 
@@ -125,7 +131,7 @@ export default function Requests({ kind }: { kind?: ServiceRequestKind }) {
         <ErrorState message={error} onRetry={() => void load()} />
       ) : !rows || rows.length === 0 ? (
         <EmptyState
-          icon={Inbox}
+          icon={CheckCircle2}
           title="Nothing here"
           description={
             status === "open"
@@ -141,25 +147,26 @@ export default function Requests({ kind }: { kind?: ServiceRequestKind }) {
               className="row-card hover-elevate active-elevate-2"
               to={hrefFor(row)}
             >
-              <span className="grow stack-sm">
-                <span className="inline" style={{ flexWrap: "wrap" }}>
-                  <strong>{row.title}</strong>
-                  <RequestStatusBadge status={row.status} />
-                  {!kind && (
-                    <span className="badge neutral">
-                      {KIND_LABELS[row.kind]}
-                    </span>
-                  )}
-                </span>
-                <span className="small muted">
-                  <span className="mono">{row.id}</span> · {row.residentName}
-                  {row.roomNumber ? ` · Room ${row.roomNumber}` : ""}
-                </span>
-                <span className="caption">
-                  Raised {relativeTime(row.createdAt)}
+              {/* Who, where and how long — the three things that decide
+                  whether a row is worth opening, on one line. */}
+              <span className="grow">
+                <strong style={{ display: "block", fontSize: 15 }}>
+                  {row.title}
+                </strong>
+                <span className="small muted" style={{ display: "block" }}>
+                  {row.residentName}
+                  {row.roomNumber ? ` · ${row.roomNumber}` : ""} ·{" "}
+                  {relativeTime(row.createdAt)}
                 </span>
               </span>
-              <ChevronRight size={18} color="var(--muted)" strokeWidth={2} />
+
+              {/* Inside a module every row is the same kind, so the chip only
+                  earns its place on the cross-module queue. */}
+              {!kind && (
+                <span className="badge outline">{KIND_LABELS[row.kind]}</span>
+              )}
+              <RequestStatusBadge status={row.status} />
+              <ChevronRight size={16} color="var(--muted)" strokeWidth={2} />
             </Link>
           ))}
         </div>

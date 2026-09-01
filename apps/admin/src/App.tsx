@@ -23,7 +23,7 @@ import {
   type AppModule,
 } from "./modules";
 import { CommandPalette } from "./palette";
-import { BackLink, Loading, greeting, initials, useClock } from "./ui";
+import { BackLink, Loading, initials } from "./ui";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Registrations from "./pages/Registrations";
@@ -105,7 +105,7 @@ function Shell() {
           </>
         )}
 
-        <main className="page">
+        <main className={`page${visibleModule ? "" : " launcher"}`}>
           <BackBar />
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -199,7 +199,6 @@ function Topbar({
   const { admin } = useAuth();
   const { theme, toggle } = useTheme();
   const { data } = useSummary();
-  const now = useClock();
 
   if (!admin) return null;
 
@@ -220,30 +219,12 @@ function Topbar({
       )}
 
       <Link className="brand" to="/">
-        <span className="brand-mark">U</span>
+        <span className="brand-mark">T</span>
         <span className="brand-word">THAPAR</span>
         <span className="brand-sub">Admin</span>
       </Link>
 
       <div className="spacer" />
-
-      <div className="topbar-greeting">
-        <span className="small" style={{ fontWeight: 600 }}>
-          {greeting(now)}, {admin.name.split(" ")[0]}
-        </span>
-        <span className="topbar-clock">
-          {now.toLocaleDateString("en-IN", {
-            weekday: "short",
-            day: "2-digit",
-            month: "short",
-          })}
-          {" · "}
-          {now.toLocaleTimeString("en-IN", {
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </span>
-      </div>
 
       <button
         className="palette-trigger hover-elevate active-elevate-2"
@@ -381,10 +362,9 @@ function ModuleSidebar({
       <nav className="stack-sm" style={{ gap: 2 }}>
         {groups.map((group) => (
           <div key={group} className="stack-sm" style={{ gap: 2 }}>
-            {/* A lone group needs no heading — the module name already said it. */}
-            {groups.length > 1 && (
-              <p className="sidebar-label">{GROUP_LABELS[group]}</p>
-            )}
+            {/* Always labelled, even when a module has just one group: the
+                label says what kind of work the list is, not just which. */}
+            <p className="sidebar-label">{GROUP_LABELS[group]}</p>
 
             {module.pages
               .filter((page) => page.group === group)

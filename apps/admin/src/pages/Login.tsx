@@ -27,7 +27,7 @@ export default function Login() {
     <div className="login-wrap">
       <form className="card login-card animate-fade-up" onSubmit={submit}>
         <div className="brand">
-          <span className="brand-mark">U</span>
+          <span className="brand-mark">T</span>
           <span className="brand-word">THAPAR</span>
           <span className="brand-sub">Admin</span>
         </div>
@@ -73,6 +73,10 @@ export default function Login() {
         <button className="btn block" type="submit" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
+
+        <p className="caption" style={{ textAlign: "center" }}>
+          Warden &amp; Ops Excellence console · access is by invitation
+        </p>
       </form>
     </div>
   );

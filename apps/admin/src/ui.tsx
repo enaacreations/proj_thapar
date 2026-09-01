@@ -243,7 +243,7 @@ export function Stat({
       <p className="caption">{label}</p>
       <p className="stat-value" style={{ color: `var(--${tone})` }}>
         {value ?? "—"}
-        {suffix && <span className="small muted">{suffix}</span>}
+        {suffix && <span className="stat-suffix">{suffix}</span>}
       </p>
     </div>
   );
