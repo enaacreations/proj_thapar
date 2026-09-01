@@ -238,6 +238,44 @@ scoped to one document for one resident.
 - **Documents are HTML, not PDF.** Every browser can save them as PDF; native
   PDF generation would slot in behind the same routes.
 
+## Daily living and hotel-style services
+
+**Mess menu** — now in the database, not code. Each meal has a serving window
+and dishes carrying dietary tags (veg, vegan, Jain, gluten-free, high-protein,
+low-carb). A resident sets their own filter and the menu **annotates rather
+than hides**: dishes that fit are marked, and each meal shows "3 of 5 fit your
+diet", so nobody is left guessing what else was served. Matching is strict AND
+— a Jain + gluten-free filter only matches dishes carrying both tags.
+
+The first time a day is requested it seeds from the old code rotation, so the
+menu is never empty. After that the admin editor is the only thing that
+changes it.
+
+**Meal ratings and vendor SLA** — residents rate a served meal 1–5, one rating
+per meal per day (re-rating updates rather than stacking, so the score can't be
+swung by one person). Admin sees a rolling 30-day average against a 3.5 target,
+a breach flag, a per-meal breakdown, and — the actionable part — **which dishes
+were on the plate when people rated badly**.
+
+**Guest meals** — book 1–6 guests a day ahead, priced per meal and charged to
+the next invoice.
+
+**Laundry** — weekly subscription tiers alongside one-off orders, four service
+types including dry-cleaning, and a real stage pipeline: scheduled → picked up
+→ washing → ready → out for delivery → delivered. Stages only move **forward**,
+and each one writes to the shared tracking timeline and notifies the resident,
+so "All requests" never disagrees with the tracker.
+
+**Housekeeping** — routine cleans (included) plus paid add-ons: deep cleaning,
+bathroom sanitisation, upholstery, pest control. Fixed slots so the team can be
+routed; a resident can't double-book a slot.
+
+**Amenities** — coworking pod, study room, gaming zone and rooftop BBQ, each
+with its own capacity, slot length and opening hours. Slots are generated from
+those hours; capacity is enforced in code (it varies per amenity) and a unique
+index stops the same person holding a slot twice. Taking the last place returns
+a 409 telling the next person to pick another.
+
 ## Database
 
 PostgreSQL via **Drizzle ORM**. Schema is in
@@ -373,6 +411,10 @@ tables onto those, and a decision about which side owns writes.
   phone's owner is present, not which resident they are.
 - **No AR or 3D tours, and no certified eSign or Aadhaar API** — see the
   vendor boundaries under Onboarding above.
+- **The mess vendor SLA is measured, not enforced.** The score and breach flag
+  are there; escalating a breach is still a conversation, not a workflow.
+- **Laundry subscriptions don't auto-create pickups.** The plan and next pickup
+  date are tracked, but a scheduled job to raise the weekly order doesn't exist.
 - **No payment gateway.** See the vendor note under Money — the flow is
   complete but nothing is charged.
 - **No mess/menu admin.** The weekly menu, categories and laundry slots are

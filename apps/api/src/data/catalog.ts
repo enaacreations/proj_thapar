@@ -442,3 +442,145 @@ export const LAYOUT_PIECES = [
   { id: "drying-rack", name: "Drying rack", widthCm: 60, depthCm: 55 },
   { id: "suitcase", name: "Suitcase", widthCm: 75, depthCm: 30 },
 ];
+
+/* ------------------------------------------- daily living reference data */
+
+/** Laundry subscription tiers. Prices are whole rupees per month. */
+export const LAUNDRY_PLANS = [
+  {
+    plan: "Light",
+    service: "wash_fold" as const,
+    piecesPerWeek: 10,
+    monthlyPrice: 599,
+    description: "Up to 10 pieces a week, washed and folded.",
+  },
+  {
+    plan: "Regular",
+    service: "wash_iron" as const,
+    piecesPerWeek: 20,
+    monthlyPrice: 999,
+    description: "Up to 20 pieces a week, washed and ironed.",
+  },
+  {
+    plan: "Heavy",
+    service: "wash_iron" as const,
+    piecesPerWeek: 35,
+    monthlyPrice: 1499,
+    description: "Up to 35 pieces a week, plus bedsheets and towels.",
+  },
+];
+
+/** Per-piece prices for one-off orders outside a subscription. */
+export const LAUNDRY_SERVICE_PRICES: Record<string, number> = {
+  wash_fold: 15,
+  wash_iron: 25,
+  iron_only: 10,
+  dry_clean: 120,
+};
+
+export const HOUSEKEEPING_SERVICES = [
+  {
+    id: "routine",
+    name: "Routine room clean",
+    description: "Sweep, mop, dust and bin. Included in your rent.",
+    price: 0,
+    durationMinutes: 30,
+    addOn: false,
+  },
+  {
+    id: "deep-clean",
+    name: "Deep cleaning",
+    description: "Behind furniture, inside the wardrobe, windows and fans.",
+    price: 499,
+    durationMinutes: 120,
+    addOn: true,
+  },
+  {
+    id: "bathroom",
+    name: "Bathroom sanitisation",
+    description: "Descaling, disinfecting and drain clearing.",
+    price: 299,
+    durationMinutes: 45,
+    addOn: true,
+  },
+  {
+    id: "upholstery",
+    name: "Upholstery and mattress",
+    description: "Vacuum and shampoo the mattress and any soft furniture.",
+    price: 699,
+    durationMinutes: 90,
+    addOn: true,
+  },
+  {
+    id: "pest",
+    name: "Pest control",
+    description: "Cockroach and ant treatment, gel-based and odourless.",
+    price: 399,
+    durationMinutes: 60,
+    addOn: true,
+  },
+];
+
+/** Housekeeping works in fixed slots so the team can be routed sensibly. */
+export const HOUSEKEEPING_SLOTS = [
+  "8:00 am - 10:00 am",
+  "10:00 am - 12:00 pm",
+  "12:00 pm - 2:00 pm",
+  "2:00 pm - 4:00 pm",
+  "4:00 pm - 6:00 pm",
+];
+
+export const AMENITY_SEED = [
+  {
+    id: "AMN-COWORK",
+    name: "Coworking pod",
+    kind: "coworking" as const,
+    description: "Six-seat quiet pod with power and monitors.",
+    capacity: 6,
+    slotMinutes: 60,
+    openFrom: "08:00",
+    openTo: "22:00",
+  },
+  {
+    id: "AMN-STUDY",
+    name: "Private study room",
+    kind: "study" as const,
+    description: "Bookable one at a time, whiteboard included.",
+    capacity: 1,
+    slotMinutes: 60,
+    openFrom: "07:00",
+    openTo: "23:00",
+  },
+  {
+    id: "AMN-GAMING",
+    name: "Gaming zone",
+    kind: "gaming" as const,
+    description: "Console, projector and four controllers.",
+    capacity: 4,
+    slotMinutes: 60,
+    openFrom: "16:00",
+    openTo: "23:00",
+  },
+  {
+    id: "AMN-BBQ",
+    name: "Rooftop BBQ",
+    kind: "bbq" as const,
+    description: "Grill, seating for twelve. Two-hour slots.",
+    capacity: 1,
+    slotMinutes: 120,
+    openFrom: "17:00",
+    openTo: "23:00",
+  },
+];
+
+/** What a guest pays per meal, charged to the resident. */
+export const GUEST_MEAL_PRICES: Record<string, number> = {
+  breakfast: 80,
+  lunch: 140,
+  snacks: 60,
+  dinner: 150,
+};
+
+/** The quality bar the mess vendor is held to, out of 5. */
+export const MESS_SLA_TARGET = 3.5;
+export const MESS_SLA_WINDOW_DAYS = 30;

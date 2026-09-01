@@ -20,6 +20,7 @@ import * as admin from "../data/admin";
 import { adminOpsRouter } from "./admin-ops";
 import { adminOnboardingRouter } from "./admin-onboarding";
 import { adminFinanceRouter } from "./admin-finance";
+import { adminLivingRouter } from "./admin-living";
 
 export const adminRouter: Router = Router();
 
@@ -76,6 +77,7 @@ adminRouter.get("/auth/me", requireAdmin, (req, res) => {
 adminRouter.use(requireAdmin, adminOpsRouter);
 adminRouter.use(requireAdmin, adminOnboardingRouter);
 adminRouter.use(requireAdmin, adminFinanceRouter);
+adminRouter.use(requireAdmin, adminLivingRouter);
 
 /* --------------------------------------------------------- registrations */
 

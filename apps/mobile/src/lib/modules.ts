@@ -1,6 +1,8 @@
 import {
   Bed,
   ClipboardCheck,
+  CalendarDays,
+  Sparkles,
   CalendarHeart,
   ClipboardList,
   CreditCard,
@@ -69,6 +71,24 @@ export const MODULES: ModuleTile[] = [
     icon: Shirt,
     tint: "info",
     keywords: ["wash", "clothes", "press", "ironing", "pickup"],
+  },
+  {
+    key: "housekeeping",
+    name: "Housekeeping",
+    description: "Book a clean or deep clean",
+    href: "/services/housekeeping",
+    icon: Sparkles,
+    tint: "info",
+    keywords: ["clean", "cleaning", "deep", "pest", "bathroom", "upholstery"],
+  },
+  {
+    key: "amenities",
+    name: "Book a space",
+    description: "Study room, gaming, BBQ",
+    href: "/services/amenities",
+    icon: CalendarDays,
+    tint: "pop",
+    keywords: ["amenity", "coworking", "study", "gaming", "bbq", "gym", "slot"],
   },
   {
     key: "maintenance",

@@ -9,6 +9,7 @@ import type {
   FoodPreferences,
   LaundryItem,
   LaundryRequest,
+  LaundryService,
   MaintenanceRequest,
   MealType,
   MessEntryRecord,
@@ -467,6 +468,7 @@ export async function createLaundry(
   residentId: string,
   input: {
     title: string;
+    service: LaundryService;
     items: LaundryItem[];
     totalPieces: number;
     pickupSlot: string;

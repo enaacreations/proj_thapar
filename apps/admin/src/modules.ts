@@ -1,6 +1,7 @@
 import {
   ClipboardList,
   Wallet,
+  ConciergeBell,
   Star,
   UserCheck,
   UserPlus,
@@ -157,6 +158,21 @@ export const MODULES: AppModule[] = [
       d.finance.outstanding
         ? `₹${d.finance.outstanding.toLocaleString("en-IN")} outstanding`
         : null,
+  },
+  {
+    key: "services",
+    name: "Services",
+    description: "Mess, laundry, housekeeping and spaces",
+    path: "/services",
+    icon: ConciergeBell,
+    tint: "--pop",
+    roles: ALL_ROLES,
+    pages: [
+      { query: "", label: "Mess quality" },
+      { query: "?view=laundry", label: "Laundry" },
+      { query: "?view=housekeeping", label: "Housekeeping" },
+      { query: "?view=amenities", label: "Space bookings" },
+    ],
   },
   {
     key: "feedback",

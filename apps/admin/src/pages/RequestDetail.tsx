@@ -9,7 +9,6 @@ import {
 } from "@proj/shared";
 import { api, messageOf } from "../api";
 import {
-  BackLink,
   ErrorState,
   KIND_LABELS,
   Loading,
@@ -100,8 +99,6 @@ export default function RequestDetail() {
 
   return (
     <div className="stack animate-fade-up" style={{ gap: 20 }}>
-      <BackLink to="/requests" label="Back to requests" />
-
       {loading && !data ? (
         <Loading />
       ) : error || !data ? (

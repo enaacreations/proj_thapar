@@ -1,24 +1,41 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { CircleDot, Leaf, PauseCircle, PlayCircle, Star } from "lucide-react-native";
 import {
+  DIET_FILTERS,
+  DIET_TAG_LABELS,
   MEAL_LABELS,
   MEAL_TYPES,
+  type DietTag,
   type FoodPreferences,
   type MealType,
 } from "@proj/shared";
+import {
+  Check,
+  Leaf,
+  PauseCircle,
+  PlayCircle,
+  Star,
+  UserPlus,
+} from "lucide-react-native";
 import { useTheme } from "../src/theme/ThemeProvider";
-import { radius, space } from "../src/theme/tokens";
+import { radius, space, withAlpha } from "../src/theme/tokens";
 import { api } from "../src/api/client";
-import { useAsync } from "../src/lib/useAsync";
-import { addDays, formatDate, friendlyDay, toIsoDate } from "../src/lib/format";
+import { messageOf, useAsync } from "../src/lib/useAsync";
+import {
+  addDays,
+  formatDate,
+  formatRupees,
+  friendlyDay,
+  toIsoDate,
+} from "../src/lib/format";
 import { AppHeader } from "../src/components/AppHeader";
 import { Badge } from "../src/components/Badge";
 import { Button } from "../src/components/Button";
 import { Calendar } from "../src/components/Calendar";
 import { Card } from "../src/components/Card";
-import { Toggle } from "../src/components/Controls";
+import { Rating, Segmented, Stepper, Toggle } from "../src/components/Controls";
+import { Field } from "../src/components/Input";
 import { Screen } from "../src/components/Screen";
 import { Sheet } from "../src/components/Sheet";
 import { ErrorState, Loading } from "../src/components/States";
@@ -30,77 +47,96 @@ export default function FoodScreen() {
   const router = useRouter();
   const toast = useToast();
 
-  const menu = useAsync(() => api.menu(7), []);
+  const menu = useAsync(() => api.diningMenu(7), []);
+  const diet = useAsync(() => api.diet(), []);
   const prefs = useAsync(() => api.foodPreferences(), []);
+  const guests = useAsync(() => api.guestMeals(), []);
 
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
-  const [pauseOpen, setPauseOpen] = useState(false);
-  const [pauseFrom, setPauseFrom] = useState<string | null>(null);
-  const [pauseTo, setPauseTo] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [dietOpen, setDietOpen] = useState(false);
+  const [rating, setRating] = useState<{ meal: MealType; value: number } | null>(
+    null
+  );
+  const [guestOpen, setGuestOpen] = useState(false);
+  const [guestDate, setGuestDate] = useState(toIsoDate(addDays(new Date(), 1)));
+  const [guestMeal, setGuestMeal] = useState<MealType>("dinner");
+  const [guestCount, setGuestCount] = useState(2);
+  const [busy, setBusy] = useState(false);
 
-  const dayMenu = useMemo(
+  const day = useMemo(
     () => menu.data?.find((d) => d.date === selectedDate) ?? menu.data?.[0],
     [menu.data, selectedDate]
   );
 
-  const applyPrefs = (next: FoodPreferences) => prefs.setData(next);
+  const activeTags = diet.data?.tags ?? [];
+
+  const toggleTag = async (tag: DietTag) => {
+    const next = activeTags.includes(tag)
+      ? activeTags.filter((t) => t !== tag)
+      : [...activeTags, tag];
+    try {
+      diet.setData(await api.saveDiet(next, diet.data?.allergies ?? ""));
+      await menu.reload();
+    } catch (err) {
+      toast.error(messageOf(err));
+    }
+  };
+
+  const submitRating = async () => {
+    if (!rating || !day) return;
+    setBusy(true);
+    try {
+      await api.rateMeal({
+        date: day.date,
+        meal: rating.meal,
+        rating: rating.value,
+      });
+      setRating(null);
+      await menu.reload();
+      toast.success("Thanks — that feeds the mess vendor's score");
+    } catch (err) {
+      toast.error(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bookGuest = async () => {
+    setBusy(true);
+    try {
+      const booked = await api.bookGuestMeal({
+        date: guestDate,
+        meal: guestMeal,
+        guests: guestCount,
+      });
+      setGuestOpen(false);
+      await guests.reload();
+      toast.success(`Booked · ${formatRupees(booked.amount)} on your next bill`);
+    } catch (err) {
+      toast.error(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const toggleMeal = async (meal: MealType, value: boolean) => {
     if (!prefs.data) return;
-    // Optimistic — the switch should move under the thumb, not after a round-trip.
-    applyPrefs({ ...prefs.data, optIn: { ...prefs.data.optIn, [meal]: value } });
+    const optimistic: FoodPreferences = {
+      ...prefs.data,
+      optIn: { ...prefs.data.optIn, [meal]: value },
+    };
+    prefs.setData(optimistic);
     try {
-      applyPrefs(await api.updateMeals({ meals: { [meal]: value } }));
-    } catch {
-      applyPrefs(prefs.data);
-      toast.error("Couldn't save that. Check your connection.");
-    }
-  };
-
-  const setAll = async (value: boolean) => {
-    if (!prefs.data) return;
-    const meals = Object.fromEntries(
-      MEAL_TYPES.map((m) => [m, value])
-    ) as Record<MealType, boolean>;
-
-    applyPrefs({ ...prefs.data, optIn: meals });
-    try {
-      applyPrefs(await api.updateMeals({ meals }));
-      toast.success(value ? "Opted in to all meals" : "Opted out of all meals");
+      prefs.setData(await api.updateMeals({ meals: { [meal]: value } }));
     } catch {
       void prefs.reload();
-      toast.error("Couldn't save that. Check your connection.");
-    }
-  };
-
-  const savePause = async () => {
-    if (!pauseFrom || !pauseTo) return;
-    setSaving(true);
-    try {
-      applyPrefs(await api.pauseFood(pauseFrom, pauseTo));
-      setPauseOpen(false);
-      toast.success("Meals paused");
-    } catch {
-      toast.error("Couldn't pause meals. Try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const resume = async () => {
-    try {
-      applyPrefs(await api.resumeFood());
-      toast.success("Meals resumed");
-    } catch {
-      toast.error("Couldn't resume meals. Try again.");
+      toast.error("Couldn't save that.");
     }
   };
 
   const pause = prefs.data?.pause ?? null;
-  const optedInCount = prefs.data
-    ? MEAL_TYPES.filter((m) => prefs.data?.optIn[m]).length
-    : 0;
+  const isToday = day?.date === toIsoDate(new Date());
+  const isPast = day ? day.date <= toIsoDate(new Date()) : false;
 
   return (
     <>
@@ -109,18 +145,18 @@ export default function FoodScreen() {
         right={
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Rate the food"
-            onPress={() => router.push("/feedback/new?category=mess")}
+            accessibilityLabel="Dietary preferences"
+            onPress={() => setDietOpen(true)}
             hitSlop={8}
             style={styles.headerAction}
           >
-            <Star size={22} color={c.accentStrong} strokeWidth={2} />
+            <Leaf size={22} color={c.accentStrong} strokeWidth={2} />
           </Pressable>
         }
       />
 
       <Screen
-        refreshing={menu.loading || prefs.loading}
+        refreshing={menu.loading}
         onRefresh={() => {
           void menu.reload();
           void prefs.reload();
@@ -134,172 +170,309 @@ export default function FoodScreen() {
           <>
             {pause && (
               <Card style={[styles.card, { borderColor: c.warning }]}>
-                <View style={styles.pausedHead}>
-                  <PauseCircle size={20} color={c.warning} strokeWidth={2} />
-                  <Text variant="cardTitle" style={styles.flex}>
-                    Meals paused
-                  </Text>
-                </View>
+                <Text variant="cardTitle">Meals paused</Text>
                 <Text variant="body" tone="muted">
-                  From {formatDate(pause.from)} to {formatDate(pause.to)}. You
-                  won't be counted for the mess on those days.
+                  {formatDate(pause.from)} to {formatDate(pause.to)}
                 </Text>
                 <Button
                   label="Resume meals"
                   variant="secondary"
                   icon={<PlayCircle size={20} color={c.ink} strokeWidth={2} />}
-                  onPress={() => void resume()}
+                  onPress={() =>
+                    void api.resumeFood().then(prefs.setData).catch(() => undefined)
+                  }
                 />
               </Card>
             )}
 
-            {/* Week strip — tapping a day swaps the menu below. */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.strip}
-            >
-              {(menu.data ?? []).map((day) => {
-                const active = day.date === selectedDate;
-                return (
-                  <Pressable
-                    key={day.date}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => setSelectedDate(day.date)}
-                    style={[
-                      styles.dayChip,
-                      {
-                        backgroundColor: active ? c.accent : c.card,
-                        borderColor: active ? c.accent : c.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      variant="label"
-                      tone={active ? "onAccent" : "muted"}
-                      numberOfLines={1}
-                    >
-                      {friendlyDay(day.date)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            {activeTags.length > 0 && (
+              <Card style={styles.dietBanner}>
+                <Leaf size={16} color={c.success} strokeWidth={2} />
+                <Text variant="label" style={styles.flex}>
+                  Showing what fits:{" "}
+                  {activeTags.map((t) => DIET_TAG_LABELS[t]).join(" + ")}
+                </Text>
+              </Card>
+            )}
 
-            {dayMenu && (
-              <View style={styles.meals}>
-                {MEAL_TYPES.map((meal) => {
-                  const info = dayMenu.meals[meal];
-                  const optedIn = prefs.data?.optIn[meal] ?? false;
-
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.strip}>
+                {(menu.data ?? []).map((d) => {
+                  const on = d.date === selectedDate;
                   return (
-                    <Card key={meal} style={styles.card}>
-                      <View style={styles.mealHead}>
-                        <View style={styles.flex}>
-                          <Text variant="cardTitle">{MEAL_LABELS[meal]}</Text>
-                          <Text variant="caption" tone="muted">
-                            {info.servingWindow}
-                          </Text>
-                        </View>
-                        <Badge
-                          label={optedIn ? "Opted in" : "Opted out"}
-                          tone={optedIn ? "success" : "neutral"}
-                          icon={optedIn ? undefined : CircleDot}
-                        />
-                      </View>
-
-                      <View style={styles.items}>
-                        {info.items.map((item) => (
-                          <View key={item.name} style={styles.item}>
-                            <Leaf
-                              size={14}
-                              color={item.veg ? c.success : c.danger}
-                              strokeWidth={2}
-                            />
-                            <Text variant="body">{item.name}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <Toggle
-                        checked={optedIn}
-                        onChange={(next) => void toggleMeal(meal, next)}
-                        label={`Eat ${MEAL_LABELS[meal].toLowerCase()}`}
-                        description="Applies from tomorrow onwards"
-                      />
-                    </Card>
+                    <Pressable
+                      key={d.date}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: on }}
+                      onPress={() => setSelectedDate(d.date)}
+                      style={[
+                        styles.dayChip,
+                        {
+                          backgroundColor: on ? c.accent : c.card,
+                          borderColor: on ? c.accent : c.border,
+                        },
+                      ]}
+                    >
+                      <Text variant="label" tone={on ? "onAccent" : "muted"}>
+                        {friendlyDay(d.date)}
+                      </Text>
+                    </Pressable>
                   );
                 })}
               </View>
-            )}
+            </ScrollView>
+
+            {day &&
+              MEAL_TYPES.map((meal) => {
+                const info = day.meals.find((m) => m.meal === meal);
+                const optedIn = prefs.data?.optIn[meal] ?? false;
+                const myRating = day.ratings.find((r) => r.meal === meal);
+                const matching = info?.dishes.filter((d) => d.matchesDiet) ?? [];
+
+                return (
+                  <Card key={meal} style={styles.card}>
+                    <View style={styles.mealHead}>
+                      <View style={styles.flex}>
+                        <Text variant="cardTitle">{MEAL_LABELS[meal]}</Text>
+                        <Text variant="caption" tone="muted">
+                          {info?.servingWindow ?? "Not published"}
+                        </Text>
+                      </View>
+                      <Badge
+                        label={optedIn ? "Opted in" : "Opted out"}
+                        tone={optedIn ? "success" : "neutral"}
+                      />
+                    </View>
+
+                    {(info?.dishes ?? []).length === 0 ? (
+                      <Text variant="body" tone="muted">
+                        Menu not published yet.
+                      </Text>
+                    ) : (
+                      <View style={styles.items}>
+                        {info?.dishes.map((dish) => (
+                          <View key={dish.id} style={styles.item}>
+                            <View
+                              style={[
+                                styles.dot,
+                                {
+                                  backgroundColor: dish.matchesDiet
+                                    ? c.success
+                                    : c.border,
+                                },
+                              ]}
+                            />
+                            <Text
+                              variant="body"
+                              tone={
+                                activeTags.length > 0 && !dish.matchesDiet
+                                  ? "muted"
+                                  : "ink"
+                              }
+                              style={styles.flex}
+                            >
+                              {dish.name}
+                            </Text>
+                            <Text variant="caption" tone="muted">
+                              {dish.tags
+                                .map((t) => DIET_TAG_LABELS[t])
+                                .slice(0, 2)
+                                .join(", ")}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {activeTags.length > 0 && (info?.dishes.length ?? 0) > 0 && (
+                      <Text variant="caption" tone={matching.length ? "success" : "warning"}>
+                        {matching.length} of {info?.dishes.length} fit your diet
+                      </Text>
+                    )}
+
+                    <Toggle
+                      checked={optedIn}
+                      onChange={(next) => void toggleMeal(meal, next)}
+                      label={`Eat ${MEAL_LABELS[meal].toLowerCase()}`}
+                    />
+
+                    {isPast &&
+                      (myRating ? (
+                        <View style={styles.ratedRow}>
+                          <Rating value={myRating.rating} size={16} />
+                          <Text variant="caption" tone="muted">
+                            You rated this
+                          </Text>
+                        </View>
+                      ) : (
+                        <Button
+                          label="Rate this meal"
+                          variant="secondary"
+                          icon={<Star size={18} color={c.ink} strokeWidth={2} />}
+                          onPress={() => setRating({ meal, value: 0 })}
+                        />
+                      ))}
+                  </Card>
+                );
+              })}
 
             <Card style={styles.card}>
-              <Text variant="cardTitle">Quick actions</Text>
+              <Text variant="cardTitle">Guests eating with you?</Text>
               <Text variant="label" tone="muted">
-                You're opted in to {optedInCount} of {MEAL_TYPES.length} meals.
+                Book a day ahead so the mess can cook for them. Charged to your
+                next invoice.
               </Text>
               <Button
-                label="Opt in to all meals"
+                label="Book a guest meal"
                 variant="secondary"
-                onPress={() => void setAll(true)}
+                icon={<UserPlus size={20} color={c.ink} strokeWidth={2} />}
+                onPress={() => setGuestOpen(true)}
               />
-              <Button
-                label="Opt out of all meals"
-                variant="outline"
-                onPress={() => void setAll(false)}
-              />
-              {!pause && (
-                <Button
-                  label="Pause meals for a few days"
-                  variant="outline"
-                  icon={<PauseCircle size={20} color={c.ink} strokeWidth={2} />}
-                  onPress={() => {
-                    setPauseFrom(toIsoDate(new Date()));
-                    setPauseTo(toIsoDate(addDays(new Date(), 4)));
-                    setPauseOpen(true);
-                  }}
-                />
-              )}
+              {(guests.data ?? [])
+                .filter((g) => g.status === "booked")
+                .map((g) => (
+                  <View key={g.id} style={styles.guestRow}>
+                    <Text variant="body" style={styles.flex}>
+                      {g.guests} × {MEAL_LABELS[g.meal]} · {formatDate(g.date)}
+                    </Text>
+                    <Text variant="mono">{formatRupees(g.amount)}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel guest meal"
+                      hitSlop={8}
+                      onPress={() =>
+                        void api
+                          .cancelGuestMeal(g.id)
+                          .then(() => guests.reload())
+                          .catch((e) => toast.error(messageOf(e)))
+                      }
+                    >
+                      <Text variant="label" tone="danger">
+                        Cancel
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
             </Card>
+
+            <Button
+              label="Pause meals for a few days"
+              variant="outline"
+              icon={<PauseCircle size={20} color={c.ink} strokeWidth={2} />}
+              onPress={() => router.push("/food")}
+            />
           </>
         )}
       </Screen>
 
+      {/* ------------------------------------------------------- diet ---- */}
       <Sheet
-        visible={pauseOpen}
-        onClose={() => setPauseOpen(false)}
-        title="Pause meals"
-        subtitle="Tap the first day, then the last day."
+        visible={dietOpen}
+        onClose={() => setDietOpen(false)}
+        title="Dietary preferences"
+        subtitle="We'll highlight what fits. Nothing is hidden — you can always see the full menu."
       >
-        <Calendar
-          value={pauseFrom}
-          rangeEnd={pauseTo}
-          minDate={toIsoDate(new Date())}
-          onChange={(iso) => {
-            // First tap sets the start; the next tap closes the range.
-            if (!pauseFrom || (pauseFrom && pauseTo)) {
-              setPauseFrom(iso);
-              setPauseTo(null);
-            } else {
-              setPauseTo(iso < pauseFrom ? pauseFrom : iso);
-              if (iso < pauseFrom) setPauseFrom(iso);
+        <View style={styles.chips}>
+          {DIET_FILTERS.map((tag) => {
+            const on = activeTags.includes(tag);
+            return (
+              <Pressable
+                key={tag}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                onPress={() => void toggleTag(tag)}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: on ? c.accent : c.border,
+                    backgroundColor: on ? c.accent : c.card,
+                  },
+                ]}
+              >
+                {on && <Check size={14} color={c.onAccent} strokeWidth={2.5} />}
+                <Text variant="label" tone={on ? "onAccent" : "ink"}>
+                  {DIET_TAG_LABELS[tag]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {diet.data?.allergies ? (
+          <Text variant="label" tone="muted">
+            Allergies on file: {diet.data.allergies}
+          </Text>
+        ) : null}
+        <Button label="Done" variant="secondary" onPress={() => setDietOpen(false)} />
+      </Sheet>
+
+      {/* ----------------------------------------------------- rating ---- */}
+      <Sheet
+        visible={rating !== null}
+        onClose={() => setRating(null)}
+        title={rating ? `Rate ${MEAL_LABELS[rating.meal].toLowerCase()}` : ""}
+        subtitle="This feeds the mess vendor's quality score."
+      >
+        <View style={styles.ratingWrap}>
+          <Rating
+            value={rating?.value ?? 0}
+            onChange={(value) =>
+              setRating((prev) => (prev ? { ...prev, value } : prev))
             }
-          }}
-        />
-        <Text variant="label" tone="muted">
-          {pauseFrom && pauseTo
-            ? `${formatDate(pauseFrom)} to ${formatDate(pauseTo)}`
-            : pauseFrom
-              ? `From ${formatDate(pauseFrom)} — now pick the last day.`
-              : "Pick the first day of the pause."}
-        </Text>
+          />
+        </View>
         <Button
-          label="Pause meals"
+          label="Submit rating"
           emphasis
-          loading={saving}
-          disabled={!pauseFrom || !pauseTo}
-          onPress={() => void savePause()}
+          loading={busy}
+          disabled={(rating?.value ?? 0) === 0}
+          onPress={() => void submitRating()}
+        />
+      </Sheet>
+
+      {/* ------------------------------------------------ guest meal ---- */}
+      <Sheet
+        visible={guestOpen}
+        onClose={() => setGuestOpen(false)}
+        title="Book a guest meal"
+        subtitle="Needs a day's notice."
+      >
+        <Field label="Which meal">
+          <Segmented<MealType>
+            value={guestMeal}
+            onChange={setGuestMeal}
+            options={MEAL_TYPES.map((m) => ({
+              value: m,
+              label: MEAL_LABELS[m],
+            }))}
+          />
+        </Field>
+
+        <Field label="Date">
+          <Calendar
+            value={guestDate}
+            onChange={setGuestDate}
+            minDate={toIsoDate(addDays(new Date(), 1))}
+          />
+        </Field>
+
+        <View style={styles.guestCountRow}>
+          <Text variant="body" style={styles.flex}>
+            How many guests?
+          </Text>
+          <Stepper
+            label="guests"
+            value={guestCount}
+            onChange={setGuestCount}
+            min={1}
+            max={6}
+          />
+        </View>
+
+        <Button
+          label="Book"
+          emphasis
+          loading={busy}
+          onPress={() => void bookGuest()}
         />
       </Sheet>
     </>
@@ -310,8 +483,8 @@ const styles = StyleSheet.create({
   headerAction: { padding: 6 },
   card: { gap: space.md },
   flex: { flex: 1 },
-  pausedHead: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  strip: { gap: space.sm, paddingVertical: 2 },
+  dietBanner: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  strip: { flexDirection: "row", gap: space.sm, paddingVertical: 2 },
   dayChip: {
     borderWidth: 1,
     borderRadius: radius.pill,
@@ -319,8 +492,22 @@ const styles = StyleSheet.create({
     minHeight: 40,
     justifyContent: "center",
   },
-  meals: { gap: space.md },
   mealHead: { flexDirection: "row", alignItems: "flex-start", gap: space.sm },
   items: { gap: 6 },
   item: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  dot: { width: 8, height: 8, borderRadius: radius.pill },
+  ratedRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  ratingWrap: { alignItems: "center", paddingVertical: space.md },
+  guestRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  guestCountRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    minHeight: 38,
+  },
 });

@@ -15,7 +15,6 @@ import {
 } from "@proj/shared";
 import { api, messageOf } from "../api";
 import {
-  BackLink,
   ErrorState,
   Loading,
   Meter,
@@ -119,8 +118,6 @@ export default function OnboardingDetail() {
 
   return (
     <div className="stack animate-fade-up" style={{ gap: 20 }}>
-      <BackLink to="/onboarding" label="Back to move-in" />
-
       <div className="card">
         <div className="card-row">
           <div className="grow stack-sm">

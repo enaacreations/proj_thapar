@@ -197,6 +197,23 @@ export const laundryRequests = pgTable(
     items: jsonb("items").$type<LaundryItem[]>().notNull(),
     totalPieces: integer("total_pieces").notNull(),
     pickupSlot: text("pickup_slot").notNull(),
+    /** Where the bag actually is; `status` stays for the shared request feed. */
+    stage: text("stage")
+      .$type<
+        | "scheduled"
+        | "picked_up"
+        | "washing"
+        | "ready"
+        | "out_for_delivery"
+        | "delivered"
+        | "cancelled"
+      >()
+      .notNull()
+      .default("scheduled"),
+    service: text("service")
+      .$type<"wash_fold" | "wash_iron" | "iron_only" | "dry_clean">()
+      .notNull()
+      .default("wash_fold"),
     photoUris: jsonb("photo_uris").$type<string[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -689,5 +706,187 @@ export const splitShares = pgTable(
   (t) => [
     uniqueIndex("split_share_key").on(t.billId, t.residentId),
     index("split_share_resident_idx").on(t.residentId, t.status),
+  ]
+);
+
+/* --------------------------------------------- daily living and services */
+
+export const menuMeals = pgTable(
+  "menu_meals",
+  {
+    id: text("id").primaryKey(),
+    date: date("date").notNull(),
+    meal: text("meal").$type<MealType>().notNull(),
+    servingWindow: text("serving_window").notNull(),
+    published: boolean("published").notNull().default(true),
+  },
+  // One entry per meal per day; the editor upserts against this.
+  (t) => [uniqueIndex("menu_meal_key").on(t.date, t.meal)]
+);
+
+export const menuDishes = pgTable(
+  "menu_dishes",
+  {
+    id: text("id").primaryKey(),
+    mealId: text("meal_id")
+      .notNull()
+      .references(() => menuMeals.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [index("menu_dish_meal_idx").on(t.mealId, t.position)]
+);
+
+export const dietPreferences = pgTable("diet_preferences", {
+  residentId: text("resident_id")
+    .primaryKey()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  allergies: text("allergies").notNull().default(""),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const mealRatings = pgTable(
+  "meal_ratings",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    meal: text("meal").$type<MealType>().notNull(),
+    rating: integer("rating").notNull(),
+    remarks: text("remarks").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  // One rating per resident per meal per day — otherwise the vendor score
+  // could be swung by one person rating repeatedly.
+  (t) => [
+    uniqueIndex("meal_rating_key").on(t.residentId, t.date, t.meal),
+    index("meal_rating_window_idx").on(t.date),
+  ]
+);
+
+export const guestMeals = pgTable(
+  "guest_meals",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    meal: text("meal").$type<MealType>().notNull(),
+    guests: integer("guests").notNull(),
+    amount: integer("amount").notNull(),
+    status: text("status")
+      .$type<"booked" | "served" | "cancelled">()
+      .notNull()
+      .default("booked"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("guest_meal_resident_idx").on(t.residentId, t.date)]
+);
+
+export const laundrySubscriptions = pgTable("laundry_subscriptions", {
+  id: text("id").primaryKey(),
+  residentId: text("resident_id")
+    .notNull()
+    .references(() => residents.id, { onDelete: "cascade" }),
+  plan: text("plan").notNull(),
+  service: text("service")
+    .$type<"wash_fold" | "wash_iron" | "iron_only" | "dry_clean">()
+    .notNull(),
+  piecesPerWeek: integer("pieces_per_week").notNull(),
+  pickupDay: integer("pickup_day").notNull(),
+  monthlyPrice: integer("monthly_price").notNull(),
+  status: text("status")
+    .$type<"active" | "paused" | "cancelled">()
+    .notNull()
+    .default("active"),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const housekeepingBookings = pgTable(
+  "housekeeping_bookings",
+  {
+    id: text("id").primaryKey(),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    serviceId: text("service_id").notNull(),
+    serviceName: text("service_name").notNull(),
+    date: date("date").notNull(),
+    slot: text("slot").notNull(),
+    price: integer("price").notNull().default(0),
+    notes: text("notes").notNull().default(""),
+    status: text("status")
+      .$type<"booked" | "in_progress" | "done" | "cancelled">()
+      .notNull()
+      .default("booked"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // A resident can't hold two cleanings in the same slot.
+    uniqueIndex("housekeeping_slot_key").on(t.residentId, t.date, t.slot),
+    index("housekeeping_date_idx").on(t.date),
+  ]
+);
+
+export const amenities = pgTable("amenities", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind")
+    .$type<"coworking" | "study" | "gaming" | "bbq" | "gym" | "other">()
+    .notNull(),
+  description: text("description").notNull().default(""),
+  capacity: integer("capacity").notNull().default(1),
+  slotMinutes: integer("slot_minutes").notNull().default(60),
+  openFrom: text("open_from").notNull(),
+  openTo: text("open_to").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+export const amenityBookings = pgTable(
+  "amenity_bookings",
+  {
+    id: text("id").primaryKey(),
+    amenityId: text("amenity_id")
+      .notNull()
+      .references(() => amenities.id, { onDelete: "cascade" }),
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    status: text("status")
+      .$type<"booked" | "in_progress" | "done" | "cancelled">()
+      .notNull()
+      .default("booked"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // The same person can't hold one slot twice; capacity is enforced in code
+    // because it varies per amenity.
+    uniqueIndex("amenity_booking_key").on(
+      t.amenityId,
+      t.date,
+      t.startTime,
+      t.residentId
+    ),
+    index("amenity_booking_slot_idx").on(t.amenityId, t.date, t.startTime),
   ]
 );

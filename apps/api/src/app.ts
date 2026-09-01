@@ -24,6 +24,12 @@ import { messRouter, notificationsRouter, requestsRouter } from "./routes/misc";
 import { onboardingRouter } from "./routes/onboarding";
 import { financeRouter } from "./routes/finance";
 import {
+  amenitiesRouter,
+  diningRouter,
+  housekeepingRouter,
+  laundryExtrasRouter,
+} from "./routes/living";
+import {
   documentsRouter,
   paymentsPublicRouter,
 } from "./routes/payments-public";
@@ -68,6 +74,9 @@ export function createApp(): Express {
   app.use("/api/me", requireAuth, meRouter);
   app.use("/api/food", requireAuth, foodRouter);
   app.use("/api/maintenance", requireAuth, maintenanceRouter);
+  // Registered before the on-demand router: its "/:id" route would otherwise
+  // swallow "/plans" and "/subscription".
+  app.use("/api/laundry", requireAuth, laundryExtrasRouter);
   app.use("/api/laundry", requireAuth, laundryRouter);
   app.use("/api/complaints", requireAuth, complaintsRouter);
   app.use("/api/visits", requireAuth, visitsRouter);
@@ -78,6 +87,9 @@ export function createApp(): Express {
   app.use("/api/notifications", requireAuth, notificationsRouter);
   app.use("/api/onboarding", requireAuth, onboardingRouter);
   app.use("/api/finance", requireAuth, financeRouter);
+  app.use("/api/dining", requireAuth, diningRouter);
+  app.use("/api/housekeeping", requireAuth, housekeepingRouter);
+  app.use("/api/amenities", requireAuth, amenitiesRouter);
 
   // Gateway callbacks and document pages can't carry a resident token: the
   // webhook is server-to-server and documents open in the system browser,

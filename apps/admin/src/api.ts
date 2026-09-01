@@ -33,6 +33,11 @@ import {
   type AdminPaymentRow,
   type DepositState,
   type GenerateInvoicesResult,
+  ADMIN_LIVING_ROUTES,
+  type AdminBookingRow,
+  type AdminLaundryRow,
+  type LaundryStage,
+  type VendorSla,
 } from "@proj/shared";
 
 /** Vite proxies /api to the Express server in dev, so this stays same-origin. */
@@ -257,6 +262,30 @@ export const api = {
       method: "POST",
       body: { reference },
     }),
+
+  /* daily living */
+  messSla: () => request<VendorSla>(ADMIN_LIVING_ROUTES.sla),
+  adminGuestMeals: () =>
+    request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.guestMeals),
+
+  laundryBoard: () =>
+    request<AdminLaundryRow[]>(ADMIN_LIVING_ROUTES.laundryBoard),
+  setLaundryStage: (id: string, stage: LaundryStage, note?: string) =>
+    request<{ ok: boolean }>(ADMIN_LIVING_ROUTES.laundryStage(id), {
+      method: "POST",
+      body: { stage, note },
+    }),
+
+  housekeepingBookings: () =>
+    request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.housekeepingBookings),
+  setHousekeepingStatus: (id: string, status: "in_progress" | "done") =>
+    request<{ ok: boolean }>(ADMIN_LIVING_ROUTES.housekeepingStatus(id), {
+      method: "POST",
+      body: { status },
+    }),
+
+  amenityBookings: () =>
+    request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.amenityBookings),
 };
 
 export function messageOf(err: unknown): string {
