@@ -14,6 +14,7 @@ import {
   PageHeader,
   Stat,
   StatusBadge,
+  initials,
   relativeTime,
 } from "../ui";
 
@@ -113,7 +114,7 @@ export default function Registrations() {
               className="row-card hover-elevate active-elevate-2"
               to={`/registrations/${row.residentId}`}
             >
-              <span className="avatar">{row.fullName.charAt(0)}</span>
+              <span className="avatar lg info">{initials(row.fullName)}</span>
 
               <span className="grow stack-sm">
                 <span className="inline" style={{ flexWrap: "wrap" }}>

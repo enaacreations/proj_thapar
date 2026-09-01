@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 import {
   ADMIN_STATUS_OPTIONS,
   REQUEST_STATUS_LABELS,
@@ -119,124 +120,117 @@ export default function RequestDetail({
         />
       ) : (
         <>
-          <div className="card">
-            <div className="card-row">
-              <div className="grow stack-sm">
-                <h1>{data.title}</h1>
-                <p className="small muted">
-                  <span className="mono">{data.id}</span> ·{" "}
-                  {KIND_LABELS[data.kind]}
-                </p>
-              </div>
-              <RequestStatusBadge status={data.status} />
+          {/* Title, what it is and what you can do about it, all above the
+              fold — the actions sit in the head rather than at the bottom. */}
+          <div className="page-head">
+            <div>
+              <h1>{data.title}</h1>
+              <p
+                className="inline"
+                style={{ marginTop: 6, flexWrap: "wrap" }}
+              >
+                <span className="badge outline">{KIND_LABELS[data.kind]}</span>
+                <RequestStatusBadge status={data.status} />
+                <span className="mono caption">{data.id}</span>
+              </p>
             </div>
+
+            {open && (
+              <div className="btn-row">
+                {ADMIN_STATUS_OPTIONS.filter((s) => s !== data.status).map(
+                  (s) => (
+                    <button
+                      key={s}
+                      className={
+                        s === "resolved" ? "btn" : "btn outline"
+                      }
+                      onClick={() => setPending(s)}
+                    >
+                      {s === "resolved" && (
+                        <CheckCircle2 size={16} strokeWidth={2} />
+                      )}
+                      {ACTION_LABEL[s]}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="card">
-            <h2 style={{ marginBottom: 12 }}>Resident</h2>
-            <dl>
-              <div className="kv">
-                <dt>Name</dt>
-                <dd>
-                  <Link to={`/residents/${data.residentId}`}>
-                    {data.residentName}
-                  </Link>
-                </dd>
-              </div>
-              <div className="kv">
-                <dt>Room</dt>
-                <dd>{data.roomNumber ?? "Not allocated"}</dd>
-              </div>
-              <div className="kv">
-                <dt>Raised</dt>
-                <dd>{formatDateTime(data.createdAt)}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="card">
-            <h2 style={{ marginBottom: 12 }}>Details</h2>
-            <dl>
-              {data.details.map((d) => (
-                <div className="kv" key={d.label}>
-                  <dt>{d.label}</dt>
-                  <dd>{d.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          {data.photoUris.length > 0 && (
-            <div className="card">
-              <h2 style={{ marginBottom: 12 }}>Photos</h2>
-              <div className="thumbs">
-                {data.photoUris.map((uri) => (
-                  <img key={uri} src={uri} alt="" />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <h2 style={{ marginBottom: 12 }}>Tracking</h2>
-            <div className="timeline">
-              {data.timeline.map((event, i) => (
-                <div className="timeline-row" key={`${event.at}-${i}`}>
-                  <div className="timeline-rail">
-                    <span
-                      className="timeline-dot"
-                      style={{ background: DOT[event.status] }}
-                    />
-                    {i < data.timeline.length - 1 && (
-                      <span className="timeline-line" />
-                    )}
-                  </div>
-                  <div className="timeline-body">
-                    <strong>{REQUEST_STATUS_LABELS[event.status]}</strong>
-                    <p className="muted small">{event.note}</p>
-                    <p className="caption">{formatDateTime(event.at)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {open ? (
-            <div className="card">
-              <div className="stack">
-                <div className="stack-sm">
-                  <h2>Move this along</h2>
-                  <p className="muted small">
-                    The resident gets a notification and sees the note on their
-                    tracking timeline.
-                  </p>
-                </div>
-                <div className="btn-row">
-                  {ADMIN_STATUS_OPTIONS.filter((s) => s !== data.status).map(
-                    (s) => (
-                      <button
-                        key={s}
-                        className={
-                          s === "rejected"
-                            ? "btn outline"
-                            : s === "resolved"
-                              ? "btn"
-                              : "btn secondary"
-                        }
-                        onClick={() => setPending(s)}
-                      >
-                        {ACTION_LABEL[s]}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
+          {!open && (
             <p className="muted small">
               This request is closed, so it can't be changed.
             </p>
           )}
+
+          <div className="detail-grid">
+            <div className="stack" style={{ gap: 16, minWidth: 0 }}>
+              <div className="card">
+                <h2 className="card-title">What the resident reported</h2>
+                <dl>
+                  {data.details.map((d) => (
+                    <div className="kv" key={d.label}>
+                      <dt>{d.label}</dt>
+                      <dd>{d.value}</dd>
+                    </div>
+                  ))}
+                  <div className="kv">
+                    <dt>Resident</dt>
+                    <dd>
+                      <Link to={`/residents/${data.residentId}`}>
+                        {data.residentName}
+                      </Link>
+                    </dd>
+                  </div>
+                  <div className="kv">
+                    <dt>Room</dt>
+                    <dd className="mono">
+                      {data.roomNumber ?? "Not allocated"}
+                    </dd>
+                  </div>
+                  <div className="kv">
+                    <dt>Raised</dt>
+                    <dd>{formatDateTime(data.createdAt)}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              {data.photoUris.length > 0 && (
+                <div className="card">
+                  <h2 className="card-title">Photos</h2>
+                  <div className="thumbs">
+                    {data.photoUris.map((uri) => (
+                      <img key={uri} src={uri} alt="" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="card">
+              <h2 className="card-title">Timeline</h2>
+              <div className="timeline">
+                {data.timeline.map((event, i) => (
+                  <div className="timeline-row" key={`${event.at}-${i}`}>
+                    <div className="timeline-rail">
+                      <span
+                        className="timeline-dot"
+                        style={{ background: DOT[event.status] }}
+                      />
+                      {i < data.timeline.length - 1 && (
+                        <span className="timeline-line" />
+                      )}
+                    </div>
+                    <div className="timeline-body">
+                      <strong>{REQUEST_STATUS_LABELS[event.status]}</strong>
+                      <p className="muted small">{event.note}</p>
+                      <p className="caption">{formatDateTime(event.at)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </>
       )}
 
