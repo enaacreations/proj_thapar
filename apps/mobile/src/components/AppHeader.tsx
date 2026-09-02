@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useTheme } from "../theme/ThemeProvider";
-import { layout, radius, space } from "../theme/tokens";
+import { layout, radius, space, surfaceWash } from "../theme/tokens";
 import { Text } from "./Text";
 
 interface AppHeaderProps {
@@ -21,17 +21,21 @@ export function AppHeader({
   back = true,
   right,
 }: AppHeaderProps) {
-  const { c } = useTheme();
+  const { c, scheme, visualStyle } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const gradientLook = visualStyle === "gradient";
+  const washTop =
+    scheme === "dark" ? surfaceWash.dark[0] : surfaceWash.light[0];
 
   return (
     <View
       style={[
         styles.header,
         {
-          backgroundColor: c.surface,
+          backgroundColor: gradientLook ? washTop : c.surface,
           borderBottomColor: c.border,
+          borderBottomWidth: gradientLook ? 0 : 1,
           paddingTop: insets.top + space.md,
         },
       ]}
@@ -71,7 +75,6 @@ const styles = StyleSheet.create({
     gap: space.md,
     paddingHorizontal: layout.screenPadding,
     paddingBottom: space.md,
-    borderBottomWidth: 1,
   },
   backButton: {
     width: layout.minTapTarget,

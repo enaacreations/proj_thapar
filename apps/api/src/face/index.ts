@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { HttpError } from "../http-error";
 import { env } from "../env";
-import { faceapi, loadFaceModels, tf } from "./models";
+import type * as FaceApi from "@vladmandic/face-api";
+import { getFaceRuntime, loadFaceModels } from "./models";
 
 /**
  * Face checks for attendance.
@@ -38,8 +39,8 @@ export interface FaceSample {
    * 68-point geometry and expression scores for the same face. Enrolment
    * ignores both; the liveness challenge is built out of them.
    */
-  landmarks: faceapi.FaceLandmarks68;
-  expressions: faceapi.FaceExpressions;
+  landmarks: FaceApi.FaceLandmarks68;
+  expressions: FaceApi.FaceExpressions;
   /**
    * SHA-256 of the decoded image bytes, so two frames that are byte-identical
    * can be spotted without keeping the images around.
@@ -101,9 +102,10 @@ export async function describeFace(base64: string): Promise<FaceSample> {
   }
 
   return serialise(async () => {
-    let image: tf.Tensor3D;
+    const { faceapi, tf } = await getFaceRuntime();
+    let image: import("@tensorflow/tfjs-node").Tensor3D;
     try {
-      image = tf.node.decodeImage(buffer, 3) as tf.Tensor3D;
+      image = tf.node.decodeImage(buffer, 3) as import("@tensorflow/tfjs-node").Tensor3D;
     } catch {
       throw faceError(
         "face_bad_image",
@@ -122,7 +124,7 @@ export async function describeFace(base64: string): Promise<FaceSample> {
 
       const faces = await faceapi
         .detectAllFaces(
-          image as unknown as faceapi.TNetInput,
+          image as unknown as FaceApi.TNetInput,
           new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
         )
         .withFaceLandmarks()
@@ -175,7 +177,12 @@ export async function describeFace(base64: string): Promise<FaceSample> {
 
 /** Lower is more similar; identical photos score 0. */
 export function faceDistance(a: number[], b: number[]): number {
-  return faceapi.euclideanDistance(a, b);
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i]! - b[i]!;
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
 }
 
 export function facesMatch(a: number[], b: number[]): boolean {

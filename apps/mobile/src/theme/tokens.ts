@@ -76,8 +76,51 @@ export const layout = {
   minTapTarget: 44,
 } as const;
 
-/** Signature brand gradient — accents only, never a page background. */
+/** Signature brand gradient — buttons, chips, and marks. */
 export const gradient = ["#FF9A3D", "#F2603C", "#C2459A"] as const;
+
+/** Soft page wash used only when visual style is "gradient". */
+export const surfaceWash = {
+  light: ["#FFD2B0", "#FCE8D6", "#FCF9F6"] as const,
+  dark: ["#4A2416", "#2A1812", "#181210"] as const,
+};
+
+/** Pastel icon-chip washes for the Home launcher when Look is Gradient. */
+export type PastelKey =
+  | "peach"
+  | "coral"
+  | "apricot"
+  | "mint"
+  | "sage"
+  | "sky"
+  | "lavender"
+  | "lilac"
+  | "rose"
+  | "butter"
+  | "teal"
+  | "mist"
+  | "honey"
+  | "dusk";
+
+export const iconWash: Record<
+  PastelKey,
+  { light: readonly [string, string]; dark: readonly [string, string] }
+> = {
+  peach: { light: ["#FFD4B8", "#F5A97A"], dark: ["#8A4A2E", "#5A2E1C"] },
+  coral: { light: ["#FFC4B8", "#E88B7A"], dark: ["#8A3E36", "#5A261E"] },
+  apricot: { light: ["#FFE0A8", "#E8B86D"], dark: ["#8A6A2E", "#5A4218"] },
+  mint: { light: ["#C8E8D4", "#7FBF9A"], dark: ["#2E5A42", "#1C3A2C"] },
+  sage: { light: ["#D4E8C8", "#8FB87A"], dark: ["#3A5A2E", "#243A1C"] },
+  sky: { light: ["#C8D8F0", "#7A9AD4"], dark: ["#2E4270", "#1C2A4A"] },
+  lavender: { light: ["#DCC8F0", "#A88AD4"], dark: ["#4A2E70", "#301C4A"] },
+  lilac: { light: ["#E8C8E8", "#C48AB8"], dark: ["#5A2E52", "#3A1C36"] },
+  rose: { light: ["#F0C8D4", "#D48A9A"], dark: ["#6A2E3E", "#421C28"] },
+  butter: { light: ["#F5E8B8", "#D4C06A"], dark: ["#6A5A24", "#423818"] },
+  teal: { light: ["#B8E0DC", "#6AB8B0"], dark: ["#2A5A56", "#1A3A38"] },
+  mist: { light: ["#D8E0E8", "#8AA0B8"], dark: ["#3A4652", "#242E38"] },
+  honey: { light: ["#F0D8B8", "#D4A06A"], dark: ["#6A4A24", "#422E18"] },
+  dusk: { light: ["#C8C8E8", "#8A8AC8"], dark: ["#36365A", "#22223A"] },
+};
 
 export const fonts = {
   sans: "DMSans_400Regular",

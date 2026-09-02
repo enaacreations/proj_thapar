@@ -7,8 +7,9 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme/ThemeProvider";
-import { fonts, layout, radius } from "../theme/tokens";
+import { fonts, gradient, layout, radius } from "../theme/tokens";
 import { Text } from "./Text";
 
 export type ButtonVariant =
@@ -43,8 +44,9 @@ export function Button({
   style,
   fullWidth = true,
 }: ButtonProps) {
-  const { c } = useTheme();
+  const { c, visualStyle } = useTheme();
   const inactive = disabled || loading;
+  const gradientFill = visualStyle === "gradient" && variant === "primary";
 
   const palette: Record<
     ButtonVariant,
@@ -73,7 +75,7 @@ export function Button({
         {
           height,
           minHeight: layout.minTapTarget,
-          backgroundColor: style_.bg,
+          backgroundColor: gradientFill ? "transparent" : style_.bg,
           borderColor: style_.border ?? "transparent",
           borderWidth: style_.border ? 1 : 0,
           opacity: inactive ? 0.5 : 1,
@@ -85,6 +87,14 @@ export function Button({
     >
       {({ pressed }) => (
         <>
+          {gradientFill && (
+            <LinearGradient
+              colors={[...gradient]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]}
+            />
+          )}
           {/* Press feedback is a tint overlay, never an elevation change. */}
           {pressed && (
             <View
@@ -124,6 +134,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   content: { flexDirection: "row", alignItems: "center", gap: 8 },
 });
