@@ -102,7 +102,6 @@ export default function HomeScreen() {
     return (
       <Card
         key={module.key}
-<<<<<<< HEAD
         style={[
           styles.tile,
           { width: tileWidth },
