@@ -277,6 +277,28 @@ financeRouter.get("/splits/candidates", async (req, res) => {
   res.json(await fin.splitCandidates(residentIdOf(req)));
 });
 
+/**
+ * Looks up one registered student by mobile number, so a bill can be split
+ * with someone who isn't a roommate. Full ten digits only — see the data-layer
+ * note on why an exact match is the safe shape for this.
+ */
+financeRouter.get("/splits/lookup", async (req, res) => {
+  const mobile = typeof req.query.mobile === "string" ? req.query.mobile.trim() : "";
+
+  if (!/^\d{10}$/.test(mobile)) {
+    throw HttpError.badRequest("Enter their full 10-digit mobile number.");
+  }
+
+  const found = await fin.findSplitCandidateByMobile(residentIdOf(req), mobile);
+  if (!found) {
+    throw HttpError.notFound(
+      "Nobody is registered with that number. Check it, or ask them to register first."
+    );
+  }
+
+  res.json(found);
+});
+
 financeRouter.post("/splits", async (req, res) => {
   const residentId = residentIdOf(req);
   const body = req.body as Partial<CreateSplitBillBody>;
@@ -305,9 +327,11 @@ financeRouter.post("/splits", async (req, res) => {
     );
   }
 
-  const candidates = await fin.splitCandidates(residentId);
-  const allowed = new Set([residentId, ...candidates.map((c) => c.residentId)]);
-  if (participants.some((p) => !allowed.has(p))) {
+  // Vet the ids directly rather than loading every candidate: participants can
+  // now come from a mobile lookup, so the list to check against is the
+  // resident table itself.
+  const approved = await fin.approvedResidentIds(participants);
+  if (participants.some((p) => !approved.has(p))) {
     throw HttpError.badRequest("One of those people isn't a resident here.");
   }
 

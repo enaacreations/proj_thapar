@@ -45,7 +45,7 @@ export const MODULES: ModuleTile[] = [
   {
     key: "food",
     name: "Food orders",
-    description: "Menu, opt in or out, pause",
+    description: "Menu, guest meals, pause",
     href: "/(tabs)/food",
     icon: UtensilsCrossed,
     group: "daily",

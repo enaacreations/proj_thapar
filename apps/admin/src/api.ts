@@ -40,7 +40,11 @@ import {
   type AdminBookingRow,
   type AdminLaundryRow,
   type LaundryStage,
+  type MealHeadcount,
   type VendorSla,
+  type AddTourMediaBody,
+  type AdminTourMedia,
+  type TourMediaItem,
 } from "@proj/shared";
 
 /** Vite proxies /api to the Express server in dev, so this stays same-origin. */
@@ -227,6 +231,21 @@ export const api = {
   compatibility: (id: string) =>
     request<RoommateMatch[]>(ADMIN_ONBOARDING_ROUTES.compatibility(id)),
 
+  /* tour media */
+  tourMedia: () =>
+    request<AdminTourMedia>(ADMIN_ONBOARDING_ROUTES.tourMedia),
+
+  addTourMedia: (body: AddTourMediaBody) =>
+    request<TourMediaItem>(ADMIN_ONBOARDING_ROUTES.tourMedia, {
+      method: "POST",
+      body,
+    }),
+
+  removeTourMedia: (id: string) =>
+    request<void>(ADMIN_ONBOARDING_ROUTES.tourMediaItem(id), {
+      method: "DELETE",
+    }),
+
   /* finance */
   financeInvoices: () =>
     request<AdminInvoiceRow[]>(ADMIN_FINANCE_ROUTES.invoices),
@@ -268,6 +287,8 @@ export const api = {
 
   /* daily living */
   messSla: () => request<VendorSla>(ADMIN_LIVING_ROUTES.sla),
+  mealCounts: (date: string) =>
+    request<MealHeadcount>(ADMIN_LIVING_ROUTES.mealCounts(date)),
   adminGuestMeals: () =>
     request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.guestMeals),
 
@@ -291,10 +312,12 @@ export const api = {
     request<AdminBookingRow[]>(ADMIN_LIVING_ROUTES.amenityBookings),
 
   /* mess counter */
-  scanMessPass: (token: string) =>
+  scanMessPass: (token: string, at: GeolocationCoordinates | null) =>
     request<MessScanResult>(ADMIN_ROUTES.messScan, {
       method: "POST",
-      body: { token },
+      body: at
+        ? { token, latitude: at.latitude, longitude: at.longitude }
+        : { token },
     }),
 
   /* settings */

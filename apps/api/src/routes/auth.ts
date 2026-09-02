@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { kycNumberProblem, normaliseKycNumber } from "@proj/shared";
 import type {
   AuthSession,
   MpinLoginBody,
@@ -42,14 +43,15 @@ authRouter.post("/register", async (req, res) => {
   }
 
   const kycType = body.kycType === "pan" ? "pan" : "aadhaar";
-  const kycNumber = requireString(body.kycNumber, "KYC number").toUpperCase();
+  // Structure only — the number is checked for shape and checksum here, and
+  // against the physical card by the hostel office at move-in. Nothing in this
+  // app talks to UIDAI or NSDL.
+  const kycNumber = normaliseKycNumber(
+    requireString(body.kycNumber, "KYC number")
+  );
 
-  if (kycType === "pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(kycNumber)) {
-    throw HttpError.badRequest("PAN should look like ABCDE1234F.");
-  }
-  if (kycType === "aadhaar" && !/^\d{12}$/.test(kycNumber)) {
-    throw HttpError.badRequest("Aadhaar number must be 12 digits.");
-  }
+  const kycProblem = kycNumberProblem(kycType, kycNumber);
+  if (kycProblem) throw HttpError.badRequest(kycProblem);
 
   const resident = await db.createResident({
     fullName: requireString(body.fullName, "full name"),

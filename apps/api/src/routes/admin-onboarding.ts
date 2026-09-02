@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import type {
+  AddTourMediaBody,
+  AdminTourMedia,
   AdminOnboardingDetail,
   AdminOnboardingRow,
   IssueLeaseBody,
@@ -13,6 +15,12 @@ import { db } from "../db/client";
 import * as t from "../db/schema";
 import * as ob from "../data/onboarding";
 import { getResident } from "../data/db";
+import { TOUR_SPACES } from "../data/catalog";
+import {
+  addTourMedia,
+  listTourMedia,
+  removeTourMedia,
+} from "../data/tour-media";
 
 export const adminOnboardingRouter: Router = Router();
 
@@ -189,4 +197,50 @@ adminOnboardingRouter.get("/onboarding/:id/compatibility", async (req, res) => {
 
   const matches: RoommateMatch[] = await ob.findMatches(id, 10);
   res.json(matches);
+});
+
+/* ------------------------------------------------------------ tour media */
+
+/**
+ * Photos and 360° panoramas for the property tour. Residents deciding whether
+ * to move in get a grey placeholder until someone puts real pictures here.
+ */
+adminOnboardingRouter.get("/tours/media", async (_req, res) => {
+  const body: AdminTourMedia = {
+    spaces: TOUR_SPACES.map((s) => ({ id: s.id, name: s.name })),
+    media: await listTourMedia(),
+  };
+  res.json(body);
+});
+
+adminOnboardingRouter.post("/tours/media", async (req, res) => {
+  const body = req.body as Partial<AddTourMediaBody>;
+
+  const spaceId = pathParam(body.spaceId, "space");
+  if (!TOUR_SPACES.some((s) => s.id === spaceId)) {
+    throw HttpError.badRequest(`"${spaceId}" isn't a space in the tour.`);
+  }
+  if (body.kind !== "photo" && body.kind !== "panorama") {
+    throw HttpError.badRequest("Is this a photo or a 360° panorama?");
+  }
+  if (typeof body.url === "string" && !/^https?:\/\//.test(body.url)) {
+    throw HttpError.badRequest("A linked image needs a full http(s) address.");
+  }
+
+  res.status(201).json(
+    await addTourMedia({
+      spaceId,
+      kind: body.kind,
+      caption: typeof body.caption === "string" ? body.caption.trim() : "",
+      imageBase64: body.imageBase64,
+      url: body.url,
+      uploadedBy: adminOf(req).name,
+    })
+  );
+});
+
+adminOnboardingRouter.delete("/tours/media/:id", async (req, res) => {
+  const removed = await removeTourMedia(pathParam(req.params.id, "media id"));
+  if (!removed) throw HttpError.notFound("That image isn't in the tour.");
+  res.status(204).end();
 });

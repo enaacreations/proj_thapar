@@ -110,6 +110,15 @@ export interface VendorSla {
   worstDishes: { name: string; average: number; count: number }[];
 }
 
+/**
+ * How many plates each meal needs on a given day, from what residents actually
+ * booked — day-by-day choices plus everyone the recurring plan covers.
+ */
+export interface MealHeadcount {
+  date: string;
+  counts: { meal: MealType; residents: number }[];
+}
+
 /* ------------------------------------------------------------ guest meals */
 
 export type GuestMealStatus = "booked" | "served" | "cancelled";
@@ -351,6 +360,8 @@ export const ADMIN_LIVING_ROUTES = {
   menu: "/api/admin/dining/menu",
   sla: "/api/admin/dining/sla",
   guestMeals: "/api/admin/dining/guest-meals",
+  mealCounts: (date: string) =>
+    `/api/admin/dining/counts?date=${encodeURIComponent(date)}`,
 
   laundryStage: (id: string) => `/api/admin/laundry/${id}/stage`,
   laundryBoard: "/api/admin/laundry/board",

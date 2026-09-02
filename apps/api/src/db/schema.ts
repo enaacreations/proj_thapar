@@ -7,6 +7,7 @@ import {
   jsonb,
   pgSequence,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -45,6 +46,13 @@ export const residents = pgTable(
     kycNumber: text("kyc_number").notNull(),
     mobile: text("mobile").notNull(),
     photoUrl: text("photo_url"),
+    /**
+     * The 128-float face-api descriptor the resident enrolled with, used to
+     * verify facial attendance. A descriptor is a one-way embedding, not a
+     * photo — it can't be turned back into an image of the resident.
+     */
+    faceDescriptor: jsonb("face_descriptor").$type<number[]>(),
+    faceEnrolledAt: timestamp("face_enrolled_at", { withTimezone: true }),
     accountStatus: text("account_status")
       .$type<ResidentAccountStatus>()
       .notNull()
@@ -148,17 +156,54 @@ export const paymentEntries = pgTable(
   (t) => [index("payment_entries_resident_idx").on(t.residentId)]
 );
 
+/**
+ * The recurring mess plan: "every day, these meals, until I say otherwise".
+ *
+ * Everything here defaults to off. A resident who has never opened the food
+ * screen is on no plan and booked for nothing — being counted for four meals a
+ * day is a decision, and it has to be one they made.
+ */
 export const foodPreferences = pgTable("food_preferences", {
   residentId: text("resident_id")
     .primaryKey()
     .references(() => residents.id, { onDelete: "cascade" }),
-  breakfast: boolean("breakfast").notNull().default(true),
-  lunch: boolean("lunch").notNull().default(true),
-  snacks: boolean("snacks").notNull().default(true),
-  dinner: boolean("dinner").notNull().default(true),
+  /** Whether the recurring plan is switched on at all. */
+  recurring: boolean("recurring").notNull().default(false),
+  breakfast: boolean("breakfast").notNull().default(false),
+  lunch: boolean("lunch").notNull().default(false),
+  snacks: boolean("snacks").notNull().default(false),
+  dinner: boolean("dinner").notNull().default(false),
   pauseFrom: date("pause_from"),
   pauseTo: date("pause_to"),
 });
+
+/**
+ * One resident's decision about one meal on one day, which always beats the
+ * recurring plan. `booked` false is a real answer, not an absent row: it's how
+ * someone on a plan skips Tuesday lunch without coming off the plan.
+ *
+ * Days with no row fall back to whatever the plan says, so a resident on a
+ * plan doesn't have to tick four boxes every morning.
+ */
+export const mealBookings = pgTable(
+  "meal_bookings",
+  {
+    residentId: text("resident_id")
+      .notNull()
+      .references(() => residents.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    meal: text("meal").$type<MealType>().notNull(),
+    booked: boolean("booked").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.residentId, t.date, t.meal] }),
+    // The mess reads this by day to work out how much to cook.
+    index("meal_bookings_day_idx").on(t.date, t.meal),
+  ]
+);
 
 export const maintenanceRequests = pgTable(
   "maintenance_requests",
@@ -310,6 +355,12 @@ export const attendanceRecords = pgTable(
     locationLabel: text("location_label").notNull(),
     photoUri: text("photo_uri"),
     withinGeofence: boolean("within_geofence").notNull(),
+    /**
+     * How closely the captured face matched the enrolled one. Null for
+     * fingerprint and QR marks, and for facial marks made before the face
+     * check existed — useful when auditing a disputed attendance.
+     */
+    faceMatchDistance: doublePrecision("face_match_distance"),
   },
   // One mark per resident per day is a hard rule, so the DB enforces it too.
   (t) => [uniqueIndex("attendance_resident_date_key").on(t.residentId, t.date)]
@@ -347,6 +398,19 @@ export const messEntries = pgTable(
     method: text("method").$type<AttendanceMethod>().notNull(),
     /** Serving day, so the one-plate-per-meal rule has something to key on. */
     date: date("date").notNull(),
+    /**
+     * Where the counter device was when it scanned. Nullable: a desktop
+     * scanner with location blocked still has to be able to serve food, and
+     * rows written before this column existed have nothing to backfill from.
+     *
+     * Recorded, not enforced — a scan from outside the fence is still a plate
+     * handed over. It's kept so the office can see a counter that has drifted
+     * off site before deciding to act on it.
+     */
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    withinGeofence: boolean("within_geofence"),
+    locationLabel: text("location_label"),
     enteredAt: timestamp("entered_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -417,6 +481,33 @@ export const kycDocuments = pgTable(
       .defaultNow(),
   },
   (t) => [index("kyc_documents_resident_idx").on(t.residentId)]
+);
+
+/**
+ * Photos and panoramas for the property tour. The spaces themselves are a
+ * fixed list in the catalogue — what a hostel is made of doesn't change — but
+ * the pictures of them do, so they live here and are merged in on read.
+ *
+ * Unlike attendance selfies these are pictures of rooms, not of people, so
+ * they're served over a plain static route.
+ */
+export const tourMedia = pgTable(
+  "tour_media",
+  {
+    id: text("id").primaryKey(),
+    /** Matches a space id in the tour catalogue. */
+    spaceId: text("space_id").notNull(),
+    kind: text("kind").$type<"photo" | "panorama">().notNull(),
+    /** A path under the media route, or an absolute URL if hosted elsewhere. */
+    uri: text("uri").notNull(),
+    caption: text("caption").notNull().default(""),
+    position: integer("position").notNull().default(0),
+    uploadedBy: text("uploaded_by").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("tour_media_space_idx").on(t.spaceId, t.position)]
 );
 
 export const leaseAgreements = pgTable(

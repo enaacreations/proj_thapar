@@ -2,7 +2,11 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
-import type { RegistrationBody } from "@proj/shared";
+import {
+  kycNumberProblem,
+  normaliseKycNumber,
+  type RegistrationBody,
+} from "@proj/shared";
 import { useTheme } from "../../src/theme/ThemeProvider";
 import { layout, radius, space } from "../../src/theme/tokens";
 import { api } from "../../src/api/client";
@@ -55,16 +59,9 @@ export default function Register() {
       case "dob":
         return dob === null ? "Pick your date of birth." : null;
       case "kyc":
-        if (kycType === "aadhaar" && !/^\d{12}$/.test(kycNumber)) {
-          return "Aadhaar number must be 12 digits.";
-        }
-        if (
-          kycType === "pan" &&
-          !/^[A-Z]{5}\d{4}[A-Z]$/.test(kycNumber.toUpperCase())
-        ) {
-          return "PAN should look like ABCDE1234F.";
-        }
-        return null;
+        // Same check the API runs, from the same module: catching a typo here
+        // saves a round trip, and the two can't disagree.
+        return kycNumberProblem(kycType, kycNumber);
       case "mobile":
         return /^\d{10}$/.test(mobile) ? null : "Enter a 10-digit mobile number.";
       default:
@@ -81,7 +78,7 @@ export default function Register() {
         dob: dob as string,
         gender,
         kycType,
-        kycNumber: kycNumber.toUpperCase(),
+        kycNumber: normaliseKycNumber(kycNumber),
         mobile,
       });
       setStep("done");
@@ -225,7 +222,8 @@ export default function Register() {
             <View style={styles.step}>
               <Text variant="title">Add an ID proof</Text>
               <Text variant="body" tone="muted">
-                We only store the number, and it stays masked in the app.
+                We only store the number, and it stays masked in the app. The
+                hostel office checks it against your card at move-in.
               </Text>
               <Field label="ID type">
                 <Segmented
@@ -252,7 +250,7 @@ export default function Register() {
                       : text.toUpperCase().slice(0, 10)
                   )
                 }
-                placeholder={kycType === "aadhaar" ? "12 digits" : "ABCDE1234F"}
+                placeholder={kycType === "aadhaar" ? "12 digits" : "ABCPE1234F"}
                 keyboardType={
                   kycType === "aadhaar" ? "number-pad" : "ascii-capable"
                 }

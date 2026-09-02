@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import {
   SPLIT_CATEGORY_LABELS,
   type SplitBill,
+  type SplitCandidate,
   type SplitCategory,
 } from "@proj/shared";
-import { Check, Plus, Trash2, Users } from "lucide-react-native";
+import { Check, Plus, Search, Trash2, Users } from "lucide-react-native";
 import { useTheme } from "../../src/theme/ThemeProvider";
 import { radius, space } from "../../src/theme/tokens";
 import { API_BASE_URL, api } from "../../src/api/client";
@@ -18,6 +19,7 @@ import { Card } from "../../src/components/Card";
 import { Segmented } from "../../src/components/Controls";
 import { EmptyState } from "../../src/components/EmptyState";
 import { Field, Input } from "../../src/components/Input";
+import { PhoneInput } from "../../src/components/PhoneInput";
 import { Screen } from "../../src/components/Screen";
 import { Sheet } from "../../src/components/Sheet";
 import { ErrorState, Loading } from "../../src/components/States";
@@ -41,6 +43,48 @@ export default function SplitsScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // People found by mobile number. They aren't roommates, so nothing would
+  // otherwise put them on screen — this is what keeps them selectable.
+  const [found, setFound] = useState<SplitCandidate[]>([]);
+  const [lookupMobile, setLookupMobile] = useState("");
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  /**
+   * Roommates are offered up front because that's who most bills are split
+   * with. Everyone else is reached by mobile number: a hostel has hundreds of
+   * students, and a chip for each of them is a list nobody can find anyone in.
+   */
+  const selectable = useMemo(() => {
+    const roommates = (candidates.data ?? []).filter((p) => p.sameRoom);
+    const byId = new Map(roommates.map((p) => [p.residentId, p]));
+    for (const person of found) byId.set(person.residentId, person);
+    return [...byId.values()];
+  }, [candidates.data, found]);
+
+  const lookUp = async () => {
+    setLookingUp(true);
+    setLookupError(null);
+    try {
+      const person = await api.lookupSplitCandidate(lookupMobile);
+
+      if (selectable.some((p) => p.residentId === person.residentId)) {
+        setLookupError(`${person.fullName} is already on the list.`);
+      } else {
+        setFound((prev) => [...prev, person]);
+      }
+      // Selecting them is the point of looking them up.
+      setPicked((prev) =>
+        prev.includes(person.residentId) ? prev : [...prev, person.residentId]
+      );
+      setLookupMobile("");
+    } catch (err) {
+      setLookupError(messageOf(err));
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
   const create = async () => {
     setBusy(true);
     setFormError(null);
@@ -55,6 +99,7 @@ export default function SplitsScreen() {
       setTitle("");
       setAmount("");
       setPicked([]);
+      setFound([]);
       await splits.reload();
       toast.success("Bill split");
     } catch (err) {
@@ -243,10 +288,14 @@ export default function SplitsScreen() {
 
         <Field
           label="Split with"
-          hint="Roommates are listed first."
+          hint={
+            selectable.length === 0
+              ? "Add anyone registered here by their mobile number."
+              : "Roommates first. Add anyone else by mobile number."
+          }
         >
           <View style={styles.chips}>
-            {(candidates.data ?? []).map((person) => {
+            {selectable.map((person) => {
               const on = picked.includes(person.residentId);
               return (
                 <Pressable
@@ -271,13 +320,33 @@ export default function SplitsScreen() {
                   {on && <Check size={14} color={c.onAccent} strokeWidth={2.5} />}
                   <Text variant="label" tone={on ? "onAccent" : "ink"}>
                     {person.fullName}
-                    {person.sameRoom ? " · roommate" : ""}
+                    {person.sameRoom
+                      ? " · roommate"
+                      : ` · ${person.mobileMasked}`}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
         </Field>
+
+        <PhoneInput
+          label="Add someone by mobile number"
+          value={lookupMobile}
+          onChangeText={(digits) => {
+            setLookupMobile(digits);
+            setLookupError(null);
+          }}
+          error={lookupError}
+        />
+        <Button
+          label="Find them"
+          variant="secondary"
+          icon={<Search size={18} color={c.ink} strokeWidth={2} />}
+          loading={lookingUp}
+          disabled={lookupMobile.length !== 10}
+          onPress={() => void lookUp()}
+        />
 
         {picked.length > 0 && Number(amount) > 0 && (
           <Text variant="label" tone="muted">

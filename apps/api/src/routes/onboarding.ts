@@ -17,6 +17,7 @@ import {
   TOUR_SPACES,
 } from "../data/catalog";
 import * as ob from "../data/onboarding";
+import { withTourMedia } from "../data/tour-media";
 
 export const onboardingRouter: Router = Router();
 
@@ -287,8 +288,8 @@ onboardingRouter.post("/move-in/inventory/submit", async (req, res) => {
 
 /* ---------------------------------------------------------------- tours */
 
-onboardingRouter.get("/tours", (_req, res) => {
-  res.json(TOUR_SPACES);
+onboardingRouter.get("/tours", async (_req, res) => {
+  res.json(await withTourMedia(TOUR_SPACES));
 });
 
 onboardingRouter.get("/tours/plan", (_req, res) => {

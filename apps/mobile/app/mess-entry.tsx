@@ -137,6 +137,7 @@ export default function MessEntryScreen() {
                   <Text variant="cardTitle">{MEAL_LABELS[entry.meal]}</Text>
                   <Text variant="label" tone="muted">
                     {formatDateTime(entry.enteredAt)}
+                    {entry.locationLabel ? ` · ${entry.locationLabel}` : ""}
                   </Text>
                 </View>
                 <Badge label="Entered" tone="success" icon={CheckCircle2} />

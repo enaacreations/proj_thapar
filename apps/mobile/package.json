@@ -25,6 +25,7 @@
     "expo-camera": "~57.0.4",
     "expo-constants": "~57.0.16",
     "expo-font": "~57.0.2",
+    "expo-image-manipulator": "~57.0.15",
     "expo-image-picker": "~57.0.14",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.8",

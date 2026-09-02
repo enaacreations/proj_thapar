@@ -9,6 +9,7 @@ import {
   type AdminLaundryRow,
   type DietTag,
   type LaundryStage,
+  type MealHeadcount,
   type MealType,
   type UpsertMenuBody,
 } from "@proj/shared";
@@ -16,6 +17,7 @@ import { HttpError } from "../http-error";
 import { db } from "../db/client";
 import * as t from "../db/schema";
 import * as living from "../data/living";
+import { isoDate, mealHeadcount } from "../data/db";
 
 export const adminLivingRouter: Router = Router();
 
@@ -25,6 +27,33 @@ function pathParam(value: unknown, what: string): string {
   }
   return value;
 }
+
+/* --------------------------------------------------------- meal headcount */
+
+/**
+ * What the kitchen should cook. This is the number the day-by-day booking
+ * exists to produce — without it, "which meals do you want" is a question
+ * nobody acts on.
+ */
+adminLivingRouter.get("/dining/counts", async (req, res) => {
+  const date =
+    typeof req.query.date === "string" ? req.query.date : isoDate(new Date());
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw HttpError.badRequest("`date` must look like 2026-09-01.");
+  }
+
+  const counts = await mealHeadcount(date);
+  const body: MealHeadcount = {
+    date,
+    counts: (Object.keys(MEAL_LABELS) as MealType[]).map((meal) => ({
+      meal,
+      residents: counts[meal],
+    })),
+  };
+
+  res.json(body);
+});
 
 /* ------------------------------------------------------------ menu editor */
 

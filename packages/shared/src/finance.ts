@@ -292,6 +292,12 @@ export interface SplitCandidate {
   fullName: string;
   roomNumber: string | null;
   sameRoom: boolean;
+  /**
+   * Masked, e.g. "XXXXXX3210". Enough for the person splitting the bill to
+   * confirm they found the right student, without handing out a directory of
+   * everyone's number.
+   */
+  mobileMasked: string;
 }
 
 /* ------------------------------------------------------------ documents */
@@ -356,6 +362,8 @@ export const FINANCE_ROUTES = {
   splits: "/api/finance/splits",
   split: (id: string) => `/api/finance/splits/${id}`,
   splitCandidates: "/api/finance/splits/candidates",
+  splitLookup: (mobile: string) =>
+    `/api/finance/splits/lookup?mobile=${encodeURIComponent(mobile)}`,
 
   documents: "/api/finance/documents",
   documentToken: "/api/finance/documents/token",

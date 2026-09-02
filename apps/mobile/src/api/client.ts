@@ -14,10 +14,14 @@ import {
   type CreateMaintenanceBody,
   type CreateVisitBody,
   type DayMenu,
+  type FaceEnrolmentStatus,
   type FeedbackEntry,
+  type DayBookings,
   type FoodPreferences,
+  type SetMealBookingBody,
   type LaundryRequest,
   type MaintenanceRequest,
+  type LivenessChallenge,
   type MarkAttendanceBody,
   type MessEntryRecord,
   type MessPass,
@@ -29,7 +33,7 @@ import {
   type SendOtpResponse,
   type ServiceRequestSummary,
   type SetMpinBody,
-  type UpdateMealOptInBody,
+  type UpdateFoodPlanBody,
   type VisitRequest,
   ONBOARDING_ROUTES,
   type InventoryCondition,
@@ -192,13 +196,23 @@ export const api = {
     post<ResidentProfile>(API_ROUTES.profileUnmask(field)),
   updateProfilePhoto: (uri: string) =>
     post<ResidentProfile>(API_ROUTES.profilePhoto, { uri }),
+  faceStatus: () => request<FaceEnrolmentStatus>(API_ROUTES.face),
+  enrolFace: (photoBase64: string) =>
+    post<FaceEnrolmentStatus>(API_ROUTES.face, { photoBase64 }),
   room: () => request<RoomDetails>(API_ROUTES.room),
   payments: () => request<PaymentSummary>(API_ROUTES.payments),
 
   /* food */
   menu: (days = 7) => request<DayMenu[]>(`${API_ROUTES.menu}?days=${days}`),
   foodPreferences: () => request<FoodPreferences>(API_ROUTES.foodPreferences),
-  updateMeals: (body: UpdateMealOptInBody) =>
+  mealBookings: (days = 7) =>
+    request<DayBookings[]>(`${API_ROUTES.foodBookings}?days=${days}`),
+  setMealBooking: (body: SetMealBookingBody) =>
+    request<DayBookings>(API_ROUTES.foodBookings, {
+      method: "PUT",
+      body,
+    }),
+  updateFoodPlan: (body: UpdateFoodPlanBody) =>
     request<FoodPreferences>(API_ROUTES.foodPreferences, {
       method: "PATCH",
       body,
@@ -242,6 +256,8 @@ export const api = {
 
   /* attendance */
   attendance: () => request<AttendanceSummary>(API_ROUTES.attendance),
+  livenessChallenge: () =>
+    request<LivenessChallenge>(API_ROUTES.livenessChallenge),
   markAttendance: (body: MarkAttendanceBody) =>
     post<AttendanceSummary>(API_ROUTES.markAttendance, body),
 
@@ -346,6 +362,8 @@ export const api = {
   splits: () => request<SplitSummary>(FINANCE_ROUTES.splits),
   splitCandidates: () =>
     request<SplitCandidate[]>(FINANCE_ROUTES.splitCandidates),
+  lookupSplitCandidate: (mobile: string) =>
+    request<SplitCandidate>(FINANCE_ROUTES.splitLookup(mobile)),
   createSplit: (body: CreateSplitBillBody) =>
     post<SplitBill>(FINANCE_ROUTES.splits, body),
   deleteSplit: (id: string) =>

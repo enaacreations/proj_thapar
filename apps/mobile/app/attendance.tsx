@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as LocalAuthentication from "expo-local-authentication";
 import {
   CalendarCheck,
   CheckCircle2,
   MapPin,
+  ScanFace,
 } from "lucide-react-native";
-import type { AttendanceMethod } from "@proj/shared";
+import type { AttendanceMethod, LivenessChallenge } from "@proj/shared";
 import { useTheme } from "../src/theme/ThemeProvider";
 import { space } from "../src/theme/tokens";
-import { api } from "../src/api/client";
+import { api, ApiRequestError } from "../src/api/client";
 import { messageOf, useAsync } from "../src/lib/useAsync";
-import { capturePhoto } from "../src/lib/photos";
+import { captureSelfie } from "../src/lib/photos";
 import { formatDate, formatTime } from "../src/lib/format";
 import { AppHeader } from "../src/components/AppHeader";
 import { Badge } from "../src/components/Badge";
@@ -35,15 +37,36 @@ const METHOD_LABELS: Record<AttendanceMethod, string> = {
 export default function AttendanceScreen() {
   const { c } = useTheme();
   const toast = useToast();
+  const router = useRouter();
   const { data, loading, error, reload, setData } = useAsync(
     () => api.attendance(),
     []
   );
+  const face = useAsync(() => api.faceStatus(), []);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [marking, setMarking] = useState(false);
 
-  const mark = async (method: AttendanceMethod) => {
+  /**
+   * The face check takes two photos: one looking straight at the camera, and
+   * one doing whatever the server just asked for. This holds where in that
+   * pair we are. Null when the face check isn't running.
+   */
+  const [liveness, setLiveness] = useState<{
+    challenge: LivenessChallenge;
+    neutralBase64: string | null;
+    problem: string | null;
+  } | null>(null);
+  const [capturing, setCapturing] = useState(false);
+
+  const mark = async (
+    method: AttendanceMethod,
+    faceCheck?: {
+      token: string;
+      neutralBase64: string;
+      challengeBase64: string;
+    }
+  ) => {
     setPickerOpen(false);
     setMarking(true);
 
@@ -61,18 +84,6 @@ export default function AttendanceScreen() {
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-
-      let photoUri: string | null = null;
-
-      if (method === "facial") {
-        const shot = await capturePhoto();
-        if (shot.problem) {
-          toast.show(shot.problem, "warning");
-          return;
-        }
-        if (shot.uris.length === 0) return;
-        photoUri = shot.uris[0] ?? null;
-      }
 
       if (method === "biometric") {
         const hardware = await LocalAuthentication.hasHardwareAsync();
@@ -96,15 +107,99 @@ export default function AttendanceScreen() {
         method,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-        photoUri,
+        photoBase64: faceCheck?.neutralBase64,
+        livenessToken: faceCheck?.token,
+        livenessPhotoBase64: faceCheck?.challengeBase64,
       });
 
       setData(summary);
+      setLiveness(null);
       toast.success("Attendance marked for today");
     } catch (err) {
+      // A resident who hasn't registered a face can't be checked against
+      // anything — send them to do it rather than repeating the error.
+      if (
+        err instanceof ApiRequestError &&
+        err.code === "face_not_enrolled"
+      ) {
+        setLiveness(null);
+        toast.show("Set up the face check first, then mark attendance.", "warning");
+        void face.reload();
+        router.push("/face-setup");
+        return;
+      }
+
+      // A failed or timed-out check is worth another go, but it needs a fresh
+      // challenge: the action changes, which is what makes it a check at all.
+      if (
+        err instanceof ApiRequestError &&
+        (err.code === "liveness_failed" ||
+          err.code === "face_not_detected" ||
+          err.code === "face_multiple" ||
+          err.code === "face_too_far" ||
+          err.code === "face_low_quality" ||
+          err.code === "face_bad_image")
+      ) {
+        await restartFacial(messageOf(err));
+        return;
+      }
+
+      setLiveness(null);
       toast.error(messageOf(err));
     } finally {
       setMarking(false);
+    }
+  };
+
+  /** Asks the server what to do this time, and opens the two-photo sheet. */
+  const restartFacial = async (problem: string | null = null) => {
+    try {
+      const challenge = await api.livenessChallenge();
+      setLiveness({ challenge, neutralBase64: null, problem });
+    } catch (err) {
+      setLiveness(null);
+      toast.error(messageOf(err));
+    }
+  };
+
+  const startFacial = () => {
+    setPickerOpen(false);
+    if (face.data && !face.data.enrolled) {
+      router.push("/face-setup");
+      return;
+    }
+    void restartFacial();
+  };
+
+  /**
+   * Takes one of the two frames. Neither photo is judged here — the phone is
+   * the resident's, so a check it could skip wouldn't be worth making. All
+   * this does is get a usable shot to the server.
+   */
+  const captureStep = async () => {
+    if (!liveness) return;
+    setCapturing(true);
+
+    try {
+      const shot = await captureSelfie();
+      if (shot.problem) {
+        toast.show(shot.problem, "warning");
+        return;
+      }
+      if (!shot.base64) return;
+
+      if (!liveness.neutralBase64) {
+        setLiveness({ ...liveness, neutralBase64: shot.base64, problem: null });
+        return;
+      }
+
+      await mark("facial", {
+        token: liveness.challenge.token,
+        neutralBase64: liveness.neutralBase64,
+        challengeBase64: shot.base64,
+      });
+    } finally {
+      setCapturing(false);
     }
   };
 
@@ -182,8 +277,29 @@ export default function AttendanceScreen() {
                 <Text variant="cardTitle">Not marked yet today</Text>
                 <Text variant="body" tone="muted">
                   It takes about 20 seconds. You'll need to be inside the
-                  hostel — we check your location.
+                  hostel — we check your location. The face option takes two
+                  photos: one straight at the camera, and one doing whatever
+                  we ask, so a photo of you can't be held up instead.
                 </Text>
+              </Card>
+            )}
+
+            {face.data && !face.data.enrolled && (
+              <Card style={[styles.card, { borderColor: c.warning }]}>
+                <View style={styles.doneRow}>
+                  <ScanFace size={22} color={c.warning} strokeWidth={2} />
+                  <Text variant="cardTitle" style={styles.flex}>
+                    Face check not set up
+                  </Text>
+                </View>
+                <Text variant="body" tone="muted">
+                  Register your face once and attendance photos get checked
+                  against it. Until then, use your fingerprint.
+                </Text>
+                <Button
+                  label="Set up face check"
+                  onPress={() => router.push("/face-setup")}
+                />
               </Card>
             )}
 
@@ -232,14 +348,65 @@ export default function AttendanceScreen() {
       >
         <SheetOption
           label="Take a photo of your face"
-          description="Works on every phone"
-          onPress={() => void mark("facial")}
+          description={
+            face.data && !face.data.enrolled
+              ? "Needs a one-time setup first"
+              : "Two photos, checked against your registered face"
+          }
+          onPress={startFacial}
         />
         <SheetOption
           label="Use your fingerprint"
           description="Uses your phone's fingerprint sensor"
           onPress={() => void mark("biometric")}
         />
+      </Sheet>
+
+      {/* Two photos, one prompt each. The second prompt isn't known until the
+          server hands it over, which is what a held-up photo can't answer. */}
+      <Sheet
+        visible={liveness !== null}
+        onClose={() => setLiveness(null)}
+        title="Face check"
+        subtitle={
+          liveness?.neutralBase64
+            ? "Step 2 of 2"
+            : "Step 1 of 2 — two quick photos"
+        }
+      >
+        {liveness && (
+          <>
+            <Card style={[styles.card, { borderColor: c.accent }]}>
+              <Text variant="cardTitle">
+                {liveness.neutralBase64
+                  ? liveness.challenge.instruction
+                  : "Look straight at the camera"}
+              </Text>
+              <Text variant="body" tone="muted">
+                {liveness.neutralBase64
+                  ? "Hold it while the camera opens, then take the photo."
+                  : "Keep a neutral face for this one — we'll ask you to do something for the second."}
+              </Text>
+            </Card>
+
+            {liveness.problem && (
+              <Text variant="label" tone="danger">
+                {liveness.problem}
+              </Text>
+            )}
+
+            <Button
+              label={
+                liveness.neutralBase64
+                  ? "Take the second photo"
+                  : "Take the first photo"
+              }
+              emphasis
+              loading={capturing || marking}
+              onPress={() => void captureStep()}
+            />
+          </>
+        )}
       </Sheet>
     </>
   );

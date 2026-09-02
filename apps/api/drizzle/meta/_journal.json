@@ -64,6 +64,34 @@
       "when": 1788300002000,
       "tag": "0008_mess_entry_day",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788319781079,
+      "tag": "0009_face_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788321312365,
+      "tag": "0010_mess_entry_location",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788322024458,
+      "tag": "0011_meal_bookings",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788322310408,
+      "tag": "0012_tour_media",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import cors from "cors";
 import morgan from "morgan";
 import type { ApiError } from "@proj/shared";
 import { env } from "./env";
+import { TOUR_MEDIA_ROUTE, tourMediaDir } from "./data/tour-media";
 import { HttpError } from "./http-error";
 import { requireAuth } from "./auth";
 import { healthRouter } from "./routes/health";
@@ -62,8 +63,24 @@ export function createApp(): Express {
       origin: env.corsOrigin === "*" ? true : env.corsOrigin.split(","),
     })
   );
-  app.use(express.json({ limit: "2mb" }));
+  // Roomy enough for a base64 selfie from the face check; the face module
+  // rejects anything genuinely oversized before it reaches the models.
+  app.use(express.json({ limit: "10mb" }));
   if (env.nodeEnv !== "test") app.use(morgan("dev"));
+
+  /**
+   * Tour photos and panoramas. These are pictures of rooms and corridors the
+   * property is showing off, so they're served plainly.
+   *
+   * Mounted on the tour subdirectory specifically, never on the uploads root:
+   * attendance selfies live under the same root and are photos of residents.
+   * Nothing hands those out without an authenticated caller asking for one
+   * record, and a static mount one level up would have done exactly that.
+   */
+  app.use(
+    TOUR_MEDIA_ROUTE,
+    express.static(tourMediaDir(), { fallthrough: false, maxAge: "1h" })
+  );
 
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);

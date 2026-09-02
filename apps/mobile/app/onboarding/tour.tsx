@@ -10,11 +10,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { Compass, LayoutGrid, MoveHorizontal } from "lucide-react-native";
-import type { TourSpace } from "@proj/shared";
+import { Compass, ImageOff, LayoutGrid, Move } from "lucide-react-native";
+import type { TourPhoto, TourSpace } from "@proj/shared";
 import { useTheme } from "../../src/theme/ThemeProvider";
 import { radius, space } from "../../src/theme/tokens";
-import { api } from "../../src/api/client";
+import { API_BASE_URL, api } from "../../src/api/client";
 import { useAsync } from "../../src/lib/useAsync";
 import { AppHeader } from "../../src/components/AppHeader";
 import { Badge } from "../../src/components/Badge";
@@ -25,6 +25,21 @@ import { ErrorState, Loading } from "../../src/components/States";
 import { Text } from "../../src/components/Text";
 
 const VIEWER_HEIGHT = 220;
+
+/**
+ * How much taller than the viewport the panorama is drawn, so there's
+ * something above and below to tilt towards. An equirectangular photo is 2:1,
+ * so at double the width there's real vertical detail to find.
+ */
+const PANORAMA_SCALE = 1.6;
+
+/**
+ * Media paths come back relative to the API ("/media/tours/…"), so the app
+ * decides which server they're on. Anything absolute is already a full URL.
+ */
+function mediaUri(uri: string): string {
+  return uri.startsWith("/") ? `${API_BASE_URL}${uri}` : uri;
+}
 
 export default function TourScreen() {
   const router = useRouter();
@@ -50,6 +65,8 @@ export default function TourScreen() {
         ) : (
           <>
             <Panorama space={active} onJump={setActiveId} />
+
+            <Gallery photos={active.photos} name={active.name} />
 
             <Card style={styles.card}>
               <View style={styles.head}>
@@ -104,8 +121,9 @@ export default function TourScreen() {
 
 /**
  * Drag-to-look viewer for an equirectangular photo. Not a true 3D projection —
- * it pans the image horizontally and wraps around, which reads correctly for
- * a single-storey room and needs no native dependency.
+ * it pans the image horizontally, wrapping around, and tilts it vertically
+ * within the overscan. That reads correctly for a single-storey room and needs
+ * no native dependency.
  */
 function Panorama({
   space: tourSpace,
@@ -120,8 +138,14 @@ function Panorama({
 
   // The panorama is drawn twice side by side so panning can wrap seamlessly.
   const imageWidth = viewWidth * 2;
+  const imageHeight = VIEWER_HEIGHT * PANORAMA_SCALE;
+  // Vertical travel: how far the image can slide before an edge shows.
+  const tiltRange = imageHeight - VIEWER_HEIGHT;
+
   const [offset, setOffset] = useState(0);
-  const start = useRef(0);
+  // Starts centred, so there's as much to look up at as down at.
+  const [tilt, setTilt] = useState(-tiltRange / 2);
+  const start = useRef({ x: 0, y: 0 });
 
   const responder = useMemo(
     () =>
@@ -129,14 +153,18 @@ function Panorama({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: () => {
-          start.current = offset;
+          start.current = { x: offset, y: tilt };
         },
         onPanResponderMove: (_e, gesture) => {
-          const next = (start.current + gesture.dx) % imageWidth;
-          setOffset(next);
+          setOffset((start.current.x + gesture.dx) % imageWidth);
+          // Horizontal wraps; vertical stops, because a room has a floor and a
+          // ceiling and sliding past either would show blank space.
+          setTilt(
+            Math.min(0, Math.max(-tiltRange, start.current.y + gesture.dy))
+          );
         },
       }),
-    [offset, imageWidth]
+    [offset, tilt, imageWidth, tiltRange]
   );
 
   const wrapped = ((offset % imageWidth) + imageWidth) % imageWidth;
@@ -149,20 +177,26 @@ function Panorama({
         { height: VIEWER_HEIGHT, borderColor: c.border, backgroundColor: c.mutedBg },
       ]}
     >
-      <View style={{ flexDirection: "row", marginLeft: wrapped - imageWidth }}>
+      <View
+        style={{
+          flexDirection: "row",
+          marginLeft: wrapped - imageWidth,
+          marginTop: tilt,
+        }}
+      >
         {[0, 1].map((i) =>
           tourSpace.panoramaUri ? (
             <Image
               key={i}
-              source={{ uri: tourSpace.panoramaUri }}
-              style={{ width: imageWidth, height: VIEWER_HEIGHT }}
+              source={{ uri: mediaUri(tourSpace.panoramaUri) }}
+              style={{ width: imageWidth, height: imageHeight }}
               resizeMode="cover"
             />
           ) : (
             <PlaceholderPanorama
               key={i}
               width={imageWidth}
-              height={VIEWER_HEIGHT}
+              height={imageHeight}
             />
           )
         )}
@@ -171,15 +205,15 @@ function Panorama({
       {!tourSpace.panoramaUri && (
         <View pointerEvents="none" style={styles.placeholderLabel}>
           <Text variant="label" tone="muted">
-            360° photo not uploaded yet
+            No 360° photo of this space yet
           </Text>
         </View>
       )}
 
       <View pointerEvents="none" style={styles.dragHint}>
-        <MoveHorizontal size={14} color={c.muted} strokeWidth={2} />
+        <Move size={14} color={c.muted} strokeWidth={2} />
         <Text variant="caption" tone="muted">
-          Drag to look around
+          Drag to look around, up and down
         </Text>
       </View>
 
@@ -207,6 +241,53 @@ function Panorama({
         );
       })}
     </View>
+  );
+}
+
+/**
+ * Ordinary photos of the space. The panorama shows the shape of a room; these
+ * are what someone deciding whether to move in actually looks at.
+ */
+function Gallery({ photos, name }: { photos: TourPhoto[]; name: string }) {
+  const { c } = useTheme();
+
+  if (photos.length === 0) {
+    return (
+      <View
+        style={[
+          styles.emptyGallery,
+          { borderColor: c.border, backgroundColor: c.card },
+        ]}
+      >
+        <ImageOff size={16} color={c.muted} strokeWidth={2} />
+        <Text variant="label" tone="muted" style={styles.flex}>
+          No photos of {name.toLowerCase()} yet. The hostel office adds these.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={styles.strip}>
+        {photos.map((photo) => (
+          <View key={photo.id} style={styles.photoWrap}>
+            <Image
+              source={{ uri: mediaUri(photo.uri) }}
+              style={[styles.photo, { backgroundColor: c.mutedBg }]}
+              resizeMode="cover"
+              accessible
+              accessibilityLabel={photo.caption || `Photo of ${name}`}
+            />
+            {photo.caption ? (
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {photo.caption}
+              </Text>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -281,6 +362,17 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   sectionHead: { marginTop: space.md },
   strip: { flexDirection: "row", gap: space.sm, paddingVertical: 2 },
+  photoWrap: { gap: 4, width: 200 },
+  photo: { width: 200, height: 134, borderRadius: radius.lg },
+  emptyGallery: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   spaceChip: {
     borderWidth: 1,
     borderRadius: radius.pill,

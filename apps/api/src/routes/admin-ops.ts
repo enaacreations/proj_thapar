@@ -11,7 +11,7 @@ import {
 import { HttpError } from "../http-error";
 import { adminOf } from "../admin-auth";
 import * as ops from "../data/admin-ops";
-import { getResident } from "../data/db";
+import { clearFaceDescriptor, getResident } from "../data/db";
 
 export const adminOpsRouter: Router = Router();
 
@@ -144,6 +144,20 @@ adminOpsRouter.get("/residents/:id", async (req, res) => {
   const found = await ops.getResidentDetail(pathParam(req.params.id, "resident id"));
   if (!found) throw HttpError.notFound("We couldn't find that resident.");
   res.json(found);
+});
+
+/**
+ * Clears a resident's enrolled face so they can register a new one. This is
+ * the way out of the two situations residents can't fix themselves: an
+ * enrolment that no longer matches them, and one that was made from the wrong
+ * face in the first place.
+ */
+adminOpsRouter.post("/residents/:id/face/reset", async (req, res) => {
+  const id = pathParam(req.params.id, "resident id");
+  await requireResident(id);
+
+  await clearFaceDescriptor(id);
+  res.status(204).end();
 });
 
 adminOpsRouter.put("/residents/:id/room", async (req, res) => {

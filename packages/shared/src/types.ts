@@ -120,6 +120,21 @@ export interface ResidentProfile {
   mobile: string;
   photoUrl: string | null;
   accountStatus: ResidentAccountStatus;
+  /** Whether the resident can mark attendance with their face yet. */
+  faceEnrolled: boolean;
+}
+
+/* --------------------------------------------------------- face enrolment */
+
+export interface FaceEnrolmentStatus {
+  enrolled: boolean;
+  /** ISO timestamp of the enrolment, null when not enrolled. */
+  enrolledAt: string | null;
+}
+
+export interface EnrolFaceBody {
+  /** A JPEG/PNG selfie, base64-encoded. Not stored — only its descriptor is. */
+  photoBase64: string;
 }
 
 /* -------------------------------------------------------------------- room */
@@ -186,26 +201,65 @@ export interface DayMenu {
   meals: Record<MealType, { servingWindow: string; items: MenuItem[] }>;
 }
 
-/** Which meals the resident is currently opted into. */
+/** Which meals a recurring plan covers. */
 export type MealOptIn = Record<MealType, boolean>;
-
-export interface UpdateMealOptInBody {
-  meals: Partial<MealOptIn>;
-}
 
 export interface FoodPause {
   from: string;
   to: string;
 }
 
+/**
+ * The recurring mess plan. Separate from day-by-day booking on purpose:
+ * choosing to eat in the mess tomorrow shouldn't sign anyone up for every meal
+ * from now on. `recurring` is off until the resident turns it on.
+ */
 export interface FoodPreferences {
+  recurring: boolean;
+  /** Which meals the plan covers. Meaningless while `recurring` is false. */
   optIn: MealOptIn;
+  /** Set while the plan is paused — going home for a week, say. */
   pause: FoodPause | null;
+}
+
+export interface UpdateFoodPlanBody {
+  recurring?: boolean;
+  meals?: Partial<MealOptIn>;
 }
 
 export interface PauseFoodBody {
   from: string;
   to: string;
+}
+
+/* --------------------------------------------------- day-by-day bookings */
+
+/** Why a meal is or isn't booked, so the app can say which without guessing. */
+export type MealBookingSource =
+  /** The resident picked this meal, or skipped it, for this day specifically. */
+  | "chosen"
+  /** Carried over from the recurring plan. */
+  | "plan"
+  /** No plan and no choice — nothing is booked. */
+  | "none";
+
+export interface MealBooking {
+  meal: MealType;
+  booked: boolean;
+  source: MealBookingSource;
+  /** False for days already gone. The past isn't a plan any more. */
+  editable: boolean;
+}
+
+export interface DayBookings {
+  date: string;
+  meals: MealBooking[];
+}
+
+export interface SetMealBookingBody {
+  date: string;
+  meal: MealType;
+  booked: boolean;
 }
 
 /* ------------------------------------------------- requests (shared shape) */
@@ -362,13 +416,57 @@ export interface AttendanceRecord {
   locationLabel: string;
   photoUri: string | null;
   withinGeofence: boolean;
+  /**
+   * Distance between the captured face and the enrolled one, for facial marks
+   * made since the face check shipped. Null otherwise.
+   */
+  faceMatchDistance: number | null;
+}
+
+/**
+ * What a resident is asked to do in front of the camera to show they're a
+ * person and not a photograph of one. The API picks one at random per attempt,
+ * so a printed face can't be prepared for the right thing in advance.
+ */
+export type LivenessAction =
+  | "smile"
+  | "open_mouth"
+  | "close_eyes"
+  | "turn_head";
+
+export const LIVENESS_INSTRUCTIONS: Record<LivenessAction, string> = {
+  smile: "Now smile at the camera",
+  open_mouth: "Now open your mouth",
+  close_eyes: "Now close your eyes",
+  turn_head: "Now turn your head to one side",
+};
+
+export interface LivenessChallenge {
+  /** Signed and short-lived. The app sends it back with the photos. */
+  token: string;
+  action: LivenessAction;
+  /** The wording to put on screen, so both sides say the same thing. */
+  instruction: string;
+  expiresInSeconds: number;
 }
 
 export interface MarkAttendanceBody {
   method: AttendanceMethod;
   latitude: number;
   longitude: number;
-  photoUri?: string | null;
+  /**
+   * Required when `method` is "facial": a base64 selfie the server checks
+   * against the resident's enrolled face. A local file URI is not enough —
+   * the server has to see the pixels to verify them.
+   *
+   * This is the *first* frame: looking straight at the camera, neutral. It's
+   * the one identity is decided from.
+   */
+  photoBase64?: string;
+  /** The challenge token from `GET /api/attendance/liveness`. Facial only. */
+  livenessToken?: string;
+  /** The second frame, taken while doing what the challenge asked. */
+  livenessPhotoBase64?: string;
 }
 
 export interface AttendanceSummary {
@@ -409,6 +507,9 @@ export interface MessEntryRecord {
   meal: MealType;
   method: AttendanceMethod;
   enteredAt: string;
+  /** Null for entries scanned before locations were captured, or with location off. */
+  withinGeofence: boolean | null;
+  locationLabel: string | null;
 }
 
 /**
@@ -427,6 +528,13 @@ export interface MessPass {
 /** What the counter posts after scanning a resident's pass. */
 export interface ScanMessPassBody {
   token: string;
+  /**
+   * Where the counter device is. Optional, and never a reason to refuse a
+   * plate: a scanner with location blocked or no GPS fix still has to work.
+   * It's stored on the entry so an off-site scan is visible after the fact.
+   */
+  latitude?: number;
+  longitude?: number;
 }
 
 /** Confirmation the counter shows: who it was, and what they're owed. */
@@ -441,6 +549,12 @@ export interface MessScanResult {
    * double-counted and the counter is told rather than silently accepting.
    */
   recorded: boolean;
+  /**
+   * Whether the counter device was inside the site geofence. Null when it sent
+   * no location — the desk shows that as "location off", not as off-site.
+   */
+  withinGeofence: boolean | null;
+  locationLabel: string | null;
 }
 
 /** Rotation window, shared so the phone and the API agree on the maths. */
@@ -474,12 +588,14 @@ export const API_ROUTES = {
   profile: "/api/me/profile",
   profileUnmask: (field: "dob" | "kyc") => `/api/me/profile/unmask/${field}`,
   profilePhoto: "/api/me/profile/photo",
+  face: "/api/me/face",
   room: "/api/me/room",
   payments: "/api/me/payments",
 
   menu: "/api/food/menu",
   foodPreferences: "/api/food/preferences",
   foodPause: "/api/food/pause",
+  foodBookings: "/api/food/bookings",
 
   maintenanceCategories: "/api/maintenance/categories",
   maintenance: "/api/maintenance",
@@ -497,6 +613,7 @@ export const API_ROUTES = {
 
   attendance: "/api/attendance",
   markAttendance: "/api/attendance/mark",
+  livenessChallenge: "/api/attendance/liveness",
 
   feedbackCategories: "/api/feedback/categories",
   feedback: "/api/feedback",

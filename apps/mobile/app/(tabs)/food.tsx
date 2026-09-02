@@ -3,10 +3,12 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  CalendarCheck,
   Check,
   Leaf,
   PauseCircle,
   PlayCircle,
+  Repeat,
   Star,
   UserPlus,
 } from "lucide-react-native";
@@ -15,12 +17,14 @@ import {
   DIET_TAG_LABELS,
   MEAL_LABELS,
   MEAL_TYPES,
+  type DayBookings,
   type DietTag,
   type FoodPreferences,
+  type MealOptIn,
   type MealType,
 } from "@proj/shared";
 import { useTheme } from "../../src/theme/ThemeProvider";
-import { radius, space } from "../../src/theme/tokens";
+import { radius, space, withAlpha } from "../../src/theme/tokens";
 import { api } from "../../src/api/client";
 import { messageOf, useAsync } from "../../src/lib/useAsync";
 import {
@@ -30,11 +34,10 @@ import {
   friendlyDay,
   toIsoDate,
 } from "../../src/lib/format";
-import { Badge } from "../../src/components/Badge";
 import { Button } from "../../src/components/Button";
 import { Calendar } from "../../src/components/Calendar";
 import { Card } from "../../src/components/Card";
-import { Rating, Segmented, Stepper, Toggle } from "../../src/components/Controls";
+import { Rating, Segmented, Stepper } from "../../src/components/Controls";
 import { Field } from "../../src/components/Input";
 import { Screen } from "../../src/components/Screen";
 import { Sheet } from "../../src/components/Sheet";
@@ -51,6 +54,7 @@ export default function FoodScreen() {
   const menu = useAsync(() => api.diningMenu(7), []);
   const diet = useAsync(() => api.diet(), []);
   const prefs = useAsync(() => api.foodPreferences(), []);
+  const bookings = useAsync(() => api.mealBookings(7), []);
   const guests = useAsync(() => api.guestMeals(), []);
 
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
@@ -65,6 +69,8 @@ export default function FoodScreen() {
   const [pauseOpen, setPauseOpen] = useState(false);
   const [pauseFrom, setPauseFrom] = useState<string | null>(null);
   const [pauseTo, setPauseTo] = useState<string | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planMeals, setPlanMeals] = useState<MealOptIn | null>(null);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -75,12 +81,58 @@ export default function FoodScreen() {
 
   const activeTags = diet.data?.tags ?? [];
   const pause = prefs.data?.pause ?? null;
+  const recurring = prefs.data?.recurring ?? false;
   const isPast = day ? day.date <= toIsoDate(new Date()) : false;
-  const optedInCount = prefs.data
-    ? MEAL_TYPES.filter((m) => prefs.data?.optIn[m]).length
-    : 0;
+
+  const bookingsForDay = useMemo(
+    () => bookings.data?.find((d) => d.date === day?.date) ?? null,
+    [bookings.data, day?.date]
+  );
 
   const applyPrefs = (next: FoodPreferences) => prefs.setData(next);
+
+  /**
+   * Books or skips one meal on one day. The recurring plan is untouched — this
+   * is the whole point of the split: eating in tomorrow isn't a subscription,
+   * and skipping Tuesday lunch isn't cancelling one.
+   */
+  const setBooking = async (date: string, meal: MealType, booked: boolean) => {
+    try {
+      const updated = await api.setMealBooking({ date, meal, booked });
+      bookings.setData(
+        (bookings.data ?? []).map((d) => (d.date === updated.date ? updated : d))
+      );
+    } catch (err) {
+      toast.error(messageOf(err));
+    }
+  };
+
+  const savePlan = async () => {
+    if (!planMeals) return;
+    setSaving(true);
+    try {
+      applyPrefs(
+        await api.updateFoodPlan({ recurring: true, meals: planMeals })
+      );
+      setPlanOpen(false);
+      await bookings.reload();
+      toast.success("Recurring plan on");
+    } catch (err) {
+      toast.error(messageOf(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const stopPlan = async () => {
+    try {
+      applyPrefs(await api.updateFoodPlan({ recurring: false }));
+      await bookings.reload();
+      toast.show("Recurring plan off. Days you already picked are unchanged.");
+    } catch (err) {
+      toast.error(messageOf(err));
+    }
+  };
 
   const toggleTag = async (tag: DietTag) => {
     const next = activeTags.includes(tag)
@@ -131,39 +183,13 @@ export default function FoodScreen() {
     }
   };
 
-  const toggleMeal = async (meal: MealType, value: boolean) => {
-    if (!prefs.data) return;
-    applyPrefs({ ...prefs.data, optIn: { ...prefs.data.optIn, [meal]: value } });
-    try {
-      applyPrefs(await api.updateMeals({ meals: { [meal]: value } }));
-    } catch {
-      applyPrefs(prefs.data);
-      toast.error("Couldn't save that. Check your connection.");
-    }
-  };
-
-  const setAll = async (value: boolean) => {
-    if (!prefs.data) return;
-    const meals = Object.fromEntries(
-      MEAL_TYPES.map((m) => [m, value])
-    ) as Record<MealType, boolean>;
-
-    applyPrefs({ ...prefs.data, optIn: meals });
-    try {
-      applyPrefs(await api.updateMeals({ meals }));
-      toast.success(value ? "Opted in to all meals" : "Opted out of all meals");
-    } catch {
-      void prefs.reload();
-      toast.error("Couldn't save that. Check your connection.");
-    }
-  };
-
   const savePause = async () => {
     if (!pauseFrom || !pauseTo) return;
     setSaving(true);
     try {
       applyPrefs(await api.pauseFood(pauseFrom, pauseTo));
       setPauseOpen(false);
+      await bookings.reload();
       toast.success("Meals paused");
     } catch {
       toast.error("Couldn't pause meals. Try again.");
@@ -175,6 +201,7 @@ export default function FoodScreen() {
   const resume = async () => {
     try {
       applyPrefs(await api.resumeFood());
+      await bookings.reload();
       toast.success("Meals resumed");
     } catch {
       toast.error("Couldn't resume meals. Try again.");
@@ -190,6 +217,7 @@ export default function FoodScreen() {
           void menu.reload();
           void prefs.reload();
           void diet.reload();
+          void bookings.reload();
           void guests.reload();
         }}
       >
@@ -232,8 +260,9 @@ export default function FoodScreen() {
                   </Text>
                 </View>
                 <Text variant="body" tone="muted">
-                  From {formatDate(pause.from)} to {formatDate(pause.to)}. You
-                  won't be counted for the mess on those days.
+                  From {formatDate(pause.from)} to {formatDate(pause.to)}, your
+                  recurring plan won't book anything. You can still pick
+                  individual meals on those days.
                 </Text>
                 <Button
                   label="Resume meals"
@@ -291,10 +320,12 @@ export default function FoodScreen() {
               <View style={styles.meals}>
                 {MEAL_TYPES.map((meal) => {
                   const info = day.meals.find((m) => m.meal === meal);
-                  const optedIn = prefs.data?.optIn[meal] ?? false;
                   const myRating = day.ratings.find((r) => r.meal === meal);
                   const matching =
                     info?.dishes.filter((dish) => dish.matchesDiet) ?? [];
+                  const booking = bookingsForDay?.meals.find(
+                    (b) => b.meal === meal
+                  );
 
                   return (
                     <Card key={meal} style={styles.card}>
@@ -305,11 +336,20 @@ export default function FoodScreen() {
                             {info?.servingWindow ?? "Not published"}
                           </Text>
                         </View>
-                        <Badge
-                          label={optedIn ? "Opted in" : "Opted out"}
-                          tone={optedIn ? "success" : "neutral"}
-                        />
                       </View>
+
+                      {/* Day-by-day choice. Booked is never the default — the
+                          resident has to say yes to each meal, or turn on a
+                          recurring plan that says it for them. */}
+                      {booking?.editable && (
+                        <BookingToggle
+                          booked={booking.booked}
+                          source={booking.source}
+                          onToggle={() =>
+                            void setBooking(day.date, meal, !booking.booked)
+                          }
+                        />
+                      )}
 
                       {(info?.dishes ?? []).length === 0 ? (
                         <Text variant="body" tone="muted">
@@ -359,13 +399,6 @@ export default function FoodScreen() {
                           {matching.length} of {info?.dishes.length} fit your diet
                         </Text>
                       )}
-
-                      <Toggle
-                        checked={optedIn}
-                        onChange={(next) => void toggleMeal(meal, next)}
-                        label={`Eat ${MEAL_LABELS[meal].toLowerCase()}`}
-                        description="Applies from tomorrow onwards"
-                      />
 
                       {isPast &&
                         (myRating ? (
@@ -428,32 +461,80 @@ export default function FoodScreen() {
                 ))}
             </Card>
 
+            {/* The recurring plan lives here, on its own, and is off until
+                it's switched on. Picking meals above never touches it. */}
             <Card style={styles.card}>
-              <Text variant="cardTitle">Quick actions</Text>
-              <Text variant="label" tone="muted">
-                You're opted in to {optedInCount} of {MEAL_TYPES.length} meals.
-              </Text>
-              <Button
-                label="Opt in to all meals"
-                variant="secondary"
-                onPress={() => void setAll(true)}
-              />
-              <Button
-                label="Opt out of all meals"
-                variant="outline"
-                onPress={() => void setAll(false)}
-              />
-              {!pause && (
-                <Button
-                  label="Pause meals for a few days"
-                  variant="outline"
-                  icon={<PauseCircle size={20} color={c.ink} strokeWidth={2} />}
-                  onPress={() => {
-                    setPauseFrom(toIsoDate(new Date()));
-                    setPauseTo(toIsoDate(addDays(new Date(), 4)));
-                    setPauseOpen(true);
-                  }}
-                />
+              <View style={styles.planHead}>
+                <Repeat size={20} color={c.accentStrong} strokeWidth={2} />
+                <Text variant="cardTitle" style={styles.flex}>
+                  Recurring plan
+                </Text>
+              </View>
+
+              {recurring ? (
+                <>
+                  <Text variant="label" tone="muted">
+                    Booked every day:{" "}
+                    {MEAL_TYPES.filter((m) => prefs.data?.optIn[m])
+                      .map((m) => MEAL_LABELS[m].toLowerCase())
+                      .join(", ")}
+                    . You can still skip any single meal above.
+                  </Text>
+
+                  {!pause && (
+                    <Button
+                      label="Pause meals for a few days"
+                      variant="outline"
+                      icon={
+                        <PauseCircle size={20} color={c.ink} strokeWidth={2} />
+                      }
+                      onPress={() => {
+                        setPauseFrom(toIsoDate(new Date()));
+                        setPauseTo(toIsoDate(addDays(new Date(), 4)));
+                        setPauseOpen(true);
+                      }}
+                    />
+                  )}
+                  <Button
+                    label="Change which meals"
+                    variant="secondary"
+                    onPress={() => {
+                      setPlanMeals(prefs.data?.optIn ?? null);
+                      setPlanOpen(true);
+                    }}
+                  />
+                  <Button
+                    label="Turn off the recurring plan"
+                    variant="ghost"
+                    onPress={() => void stopPlan()}
+                  />
+                </>
+              ) : (
+                <>
+                  <Text variant="label" tone="muted">
+                    You're picking meals one day at a time. If you eat the same
+                    meals most days, a recurring plan books them for you — and
+                    you can pause it or skip any single meal.
+                  </Text>
+                  <Button
+                    label="Set up a recurring plan"
+                    variant="secondary"
+                    icon={
+                      <CalendarCheck size={20} color={c.ink} strokeWidth={2} />
+                    }
+                    onPress={() => {
+                      setPlanMeals(
+                        prefs.data?.optIn ?? {
+                          breakfast: false,
+                          lunch: false,
+                          snacks: false,
+                          dinner: false,
+                        }
+                      );
+                      setPlanOpen(true);
+                    }}
+                  />
+                </>
               )}
             </Card>
           </>
@@ -607,7 +688,106 @@ export default function FoodScreen() {
           onPress={() => void savePause()}
         />
       </Sheet>
+
+      <Sheet
+        visible={planOpen}
+        onClose={() => setPlanOpen(false)}
+        title="Recurring plan"
+        subtitle="These meals get booked every day until you pause or stop the plan."
+      >
+        <View style={styles.chips}>
+          {MEAL_TYPES.map((meal) => {
+            const on = planMeals?.[meal] ?? false;
+            return (
+              <Pressable
+                key={meal}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                onPress={() =>
+                  setPlanMeals((prev) =>
+                    prev ? { ...prev, [meal]: !prev[meal] } : prev
+                  )
+                }
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: on ? c.accent : c.border,
+                    backgroundColor: on ? c.accent : c.card,
+                  },
+                ]}
+              >
+                {on && <Check size={14} color={c.onAccent} strokeWidth={2.5} />}
+                <Text variant="label" tone={on ? "onAccent" : "ink"}>
+                  {MEAL_LABELS[meal]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text variant="label" tone="muted">
+          Days you've already picked by hand stay as you left them.
+        </Text>
+
+        <Button
+          label={recurring ? "Save the plan" : "Turn the plan on"}
+          emphasis
+          loading={saving}
+          disabled={!MEAL_TYPES.some((m) => planMeals?.[m])}
+          onPress={() => void savePlan()}
+        />
+      </Sheet>
     </>
+  );
+}
+
+/**
+ * The per-meal choice. Says where the answer came from, so "you're booked for
+ * this" never looks like something the app decided on the resident's behalf.
+ */
+function BookingToggle({
+  booked,
+  source,
+  onToggle,
+}: {
+  booked: boolean;
+  source: DayBookings["meals"][number]["source"];
+  onToggle: () => void;
+}) {
+  const { c } = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: booked }}
+      accessibilityLabel={booked ? "Booked — tap to skip" : "Tap to book"}
+      onPress={onToggle}
+      style={[
+        styles.bookingRow,
+        {
+          borderColor: booked ? c.accent : c.border,
+          backgroundColor: booked ? withAlpha(c.accent, 0.12) : c.card,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.tick,
+          {
+            borderColor: booked ? c.accent : c.border,
+            backgroundColor: booked ? c.accent : "transparent",
+          },
+        ]}
+      >
+        {booked && <Check size={13} color={c.onAccent} strokeWidth={3} />}
+      </View>
+      <Text variant="label" style={styles.flex}>
+        {booked ? "You're eating this" : "Not booked"}
+      </Text>
+      <Text variant="caption" tone="muted">
+        {source === "plan" ? "from your plan" : source === "chosen" ? "your pick" : ""}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -632,6 +812,24 @@ const styles = StyleSheet.create({
   },
   meals: { gap: space.md },
   mealHead: { flexDirection: "row", alignItems: "flex-start", gap: space.sm },
+  planHead: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  bookingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: 12,
+    minHeight: 44,
+  },
+  tick: {
+    width: 20,
+    height: 20,
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   items: { gap: 6 },
   item: { flexDirection: "row", alignItems: "center", gap: space.sm },
   dot: { width: 8, height: 8, borderRadius: radius.pill },

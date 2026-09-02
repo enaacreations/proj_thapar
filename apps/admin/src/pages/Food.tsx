@@ -4,6 +4,7 @@ import { UtensilsCrossed } from "lucide-react";
 import {
   MEAL_LABELS,
   type AdminBookingRow,
+  type MealHeadcount,
   type VendorSla,
 } from "@proj/shared";
 import { api, messageOf } from "../api";
@@ -23,10 +24,15 @@ export default function Food() {
 
 function Mess() {
   const [sla, setSla] = useState<VendorSla | null>(null);
+  const [counts, setCounts] = useState<MealHeadcount | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.messSla().then(setSla).catch((e) => setError(messageOf(e)));
+    // Today's headcount. A failure here shouldn't blank the quality page, so
+    // it's swallowed and the panel just doesn't render.
+    const today = new Date().toISOString().slice(0, 10);
+    api.mealCounts(today).then(setCounts).catch(() => setCounts(null));
   }, []);
 
   if (error) return <ErrorState message={error} />;
@@ -38,6 +44,25 @@ function Mess() {
         title="Mess quality"
         description="What residents are rating their meals, and what the vendor is held to."
       />
+
+      {counts && (
+        <div className="card">
+          <h2 style={{ marginBottom: 4 }}>Cooking for today</h2>
+          <p className="muted small" style={{ marginBottom: 12 }}>
+            Residents booked in for each meal — the ones who picked it for today
+            plus everyone on a recurring plan that covers it. Guests are booked
+            separately.
+          </p>
+          <dl>
+            {counts.counts.map((c) => (
+              <div className="kv" key={c.meal}>
+                <dt>{MEAL_LABELS[c.meal]}</dt>
+                <dd className="mono">{c.residents}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
 
       <div className="stats">
         <Stat

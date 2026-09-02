@@ -7,6 +7,7 @@ import {
   EyeOff,
   LogOut,
   Moon,
+  ScanFace,
   Smartphone,
   Sun,
   Trash2,
@@ -204,6 +205,16 @@ export default function ProfileScreen() {
             <KeyValue
               label="Biometrics"
               value={session?.biometricEnabled ? "On" : "Off"}
+            />
+            <KeyValue
+              label="Face check"
+              value={data.faceEnrolled ? "Registered" : "Not set up"}
+            />
+            <Button
+              label={data.faceEnrolled ? "Retake face photo" : "Set up face check"}
+              variant="secondary"
+              icon={<ScanFace size={20} color={c.ink} strokeWidth={2} />}
+              onPress={() => router.push("/face-setup")}
             />
           </Card>
 

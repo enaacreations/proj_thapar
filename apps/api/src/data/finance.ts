@@ -17,7 +17,7 @@ import {
 } from "@proj/shared";
 import { db } from "../db/client";
 import * as t from "../db/schema";
-import { isoDate, nextId } from "./db";
+import { isoDate, mask, nextId } from "./db";
 import { provider } from "../payments/provider";
 
 const iso = (d: Date) => d.toISOString();
@@ -984,20 +984,26 @@ export async function deleteSplit(
   return result.length > 0;
 }
 
-/** Roommates first — they're who a bill is usually split with. */
-export async function splitCandidates(
-  residentId: string
-): Promise<SplitCandidate[]> {
+async function myRoomNumber(residentId: string): Promise<string | null> {
   const [mine] = await db
     .select({ roomNumber: t.rooms.roomNumber })
     .from(t.rooms)
     .where(eq(t.rooms.residentId, residentId))
     .limit(1);
+  return mine?.roomNumber ?? null;
+}
+
+/** Roommates first — they're who a bill is usually split with. */
+export async function splitCandidates(
+  residentId: string
+): Promise<SplitCandidate[]> {
+  const myRoom = await myRoomNumber(residentId);
 
   const rows = await db
     .select({
       residentId: t.residents.id,
       fullName: t.residents.fullName,
+      mobile: t.residents.mobile,
       roomNumber: t.rooms.roomNumber,
     })
     .from(t.residents)
@@ -1011,9 +1017,74 @@ export async function splitCandidates(
     .orderBy(t.residents.fullName);
 
   return rows
-    .map((r) => ({
+    .map(({ mobile, ...r }) => ({
       ...r,
-      sameRoom: mine?.roomNumber != null && r.roomNumber === mine.roomNumber,
+      mobileMasked: mask(mobile),
+      sameRoom: myRoom != null && r.roomNumber === myRoom,
     }))
     .sort((a, b) => Number(b.sameRoom) - Number(a.sameRoom));
+}
+
+/** Which of `ids` are approved residents — used to vet split participants. */
+export async function approvedResidentIds(
+  ids: string[]
+): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+
+  const rows = await db
+    .select({ id: t.residents.id })
+    .from(t.residents)
+    .where(
+      and(
+        inArray(t.residents.id, ids),
+        eq(t.residents.accountStatus, "approved")
+      )
+    );
+
+  return new Set(rows.map((r) => r.id));
+}
+
+/**
+ * Finds one registered student by their full mobile number.
+ *
+ * Deliberately an exact match on all ten digits, and it returns a name rather
+ * than accepting one: there is no prefix search and no way to page through
+ * residents, so the only thing this tells you about a number is something you
+ * already had to know. That's the trade every bill-splitting app makes — you
+ * cannot add someone you can't name, and students don't know each other's
+ * resident ids.
+ */
+export async function findSplitCandidateByMobile(
+  residentId: string,
+  mobile: string
+): Promise<SplitCandidate | null> {
+  const myRoom = await myRoomNumber(residentId);
+
+  const [row] = await db
+    .select({
+      residentId: t.residents.id,
+      fullName: t.residents.fullName,
+      mobile: t.residents.mobile,
+      roomNumber: t.rooms.roomNumber,
+    })
+    .from(t.residents)
+    .leftJoin(t.rooms, eq(t.residents.id, t.rooms.residentId))
+    .where(
+      and(
+        eq(t.residents.mobile, mobile),
+        ne(t.residents.id, residentId),
+        eq(t.residents.accountStatus, "approved")
+      )
+    )
+    .limit(1);
+
+  if (!row) return null;
+
+  return {
+    residentId: row.residentId,
+    fullName: row.fullName,
+    roomNumber: row.roomNumber,
+    mobileMasked: mask(row.mobile),
+    sameRoom: myRoom != null && row.roomNumber === myRoom,
+  };
 }

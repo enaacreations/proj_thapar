@@ -1,12 +1,16 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { MEAL_TYPES } from "@proj/shared";
 import type {
   AppNotification,
   AttendanceRecord,
   AttendanceSummary,
   Complaint,
+  DayBookings,
   FeedbackEntry,
   FoodPreferences,
+  MealBooking,
+  MealBookingSource,
   LaundryItem,
   LaundryRequest,
   LaundryService,
@@ -121,6 +125,28 @@ export async function setPhotoUrl(id: string, photoUrl: string): Promise<void> {
     .where(eq(t.residents.id, id));
 }
 
+/**
+ * Stores the face a resident will be checked against. Re-enrolment is gated in
+ * the route: overwriting this silently would let anyone swap in a friend's
+ * face and hand over their attendance.
+ */
+export async function setFaceDescriptor(
+  id: string,
+  descriptor: number[]
+): Promise<void> {
+  await db
+    .update(t.residents)
+    .set({ faceDescriptor: descriptor, faceEnrolledAt: new Date() })
+    .where(eq(t.residents.id, id));
+}
+
+export async function clearFaceDescriptor(id: string): Promise<void> {
+  await db
+    .update(t.residents)
+    .set({ faceDescriptor: null, faceEnrolledAt: null })
+    .where(eq(t.residents.id, id));
+}
+
 export function toProfile(
   resident: ResidentRecord,
   unmask: { dob?: boolean; kyc?: boolean } = {}
@@ -151,6 +177,7 @@ export function toProfile(
     mobile: resident.mobile,
     photoUrl: resident.photoUrl ?? null,
     accountStatus: resident.accountStatus,
+    faceEnrolled: (resident.faceDescriptor?.length ?? 0) > 0,
   };
 }
 
@@ -267,7 +294,8 @@ export async function getFoodPreferences(
     .limit(1);
 
   if (!row) {
-    // A resident with no row yet is opted in to everything by default.
+    // A resident with no row yet is on no plan at all. The columns default to
+    // false, so this is the empty state and not a subscription.
     const [created] = await db
       .insert(t.foodPreferences)
       .values({ residentId })
@@ -282,6 +310,7 @@ function toFoodPreferences(
   row: typeof t.foodPreferences.$inferSelect
 ): FoodPreferences {
   return {
+    recurring: row.recurring,
     optIn: {
       breakfast: row.breakfast,
       lunch: row.lunch,
@@ -295,15 +324,31 @@ function toFoodPreferences(
   };
 }
 
-export async function updateMeals(
+export async function updateFoodPlan(
   residentId: string,
-  meals: Partial<Record<MealType, boolean>>
+  patch: { recurring?: boolean; meals?: Partial<Record<MealType, boolean>> }
 ): Promise<FoodPreferences> {
   await getFoodPreferences(residentId);
-  await db
-    .update(t.foodPreferences)
-    .set(meals)
-    .where(eq(t.foodPreferences.residentId, residentId));
+
+  const values: Partial<typeof t.foodPreferences.$inferInsert> = {
+    ...patch.meals,
+  };
+  if (patch.recurring !== undefined) values.recurring = patch.recurring;
+
+  // Turning the plan off clears any pause with it — a paused plan that's been
+  // switched off would come back paused, which nobody would expect.
+  if (patch.recurring === false) {
+    values.pauseFrom = null;
+    values.pauseTo = null;
+  }
+
+  if (Object.keys(values).length > 0) {
+    await db
+      .update(t.foodPreferences)
+      .set(values)
+      .where(eq(t.foodPreferences.residentId, residentId));
+  }
+
   return getFoodPreferences(residentId);
 }
 
@@ -318,6 +363,149 @@ export async function setFoodPause(
     .set({ pauseFrom: from, pauseTo: to })
     .where(eq(t.foodPreferences.residentId, residentId));
   return getFoodPreferences(residentId);
+}
+
+/* -------------------------------------------------------- meal bookings */
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return isoDate(d);
+}
+
+/**
+ * What a resident is down for, day by day.
+ *
+ * Three things decide each slot, in order:
+ *   1. An explicit choice for that exact day and meal — always wins, including
+ *      when the choice was "no".
+ *   2. The recurring plan, if it's on, covers that meal, and the day isn't
+ *      inside a pause.
+ *   3. Otherwise nothing. Not being counted is the default.
+ */
+export async function getMealBookings(
+  residentId: string,
+  from: string,
+  days: number
+): Promise<DayBookings[]> {
+  const to = addDays(from, days - 1);
+  const today = isoDate(new Date());
+
+  const [plan, rows] = await Promise.all([
+    getFoodPreferences(residentId),
+    db
+      .select()
+      .from(t.mealBookings)
+      .where(
+        and(
+          eq(t.mealBookings.residentId, residentId),
+          gte(t.mealBookings.date, from),
+          lte(t.mealBookings.date, to)
+        )
+      ),
+  ]);
+
+  const chosen = new Map(
+    rows.map((r) => [`${r.date}.${r.meal}`, r.booked] as const)
+  );
+
+  return Array.from({ length: days }, (_, i) => {
+    const date = addDays(from, i);
+    const paused =
+      plan.pause !== null && date >= plan.pause.from && date <= plan.pause.to;
+
+    const meals: MealBooking[] = MEAL_TYPES.map((meal) => {
+      const choice = chosen.get(`${date}.${meal}`);
+      const onPlan = plan.recurring && plan.optIn[meal] && !paused;
+
+      const source: MealBookingSource =
+        choice !== undefined ? "chosen" : onPlan ? "plan" : "none";
+
+      return {
+        meal,
+        booked: choice ?? onPlan,
+        source,
+        editable: date >= today,
+      };
+    });
+
+    return { date, meals };
+  });
+}
+
+/**
+ * Records a choice for one meal on one day. Writing the same value the plan
+ * would have given is still stored: it pins that slot, so later changes to the
+ * plan don't quietly move a day the resident already decided about.
+ */
+export async function setMealBooking(
+  residentId: string,
+  date: string,
+  meal: MealType,
+  booked: boolean
+): Promise<DayBookings> {
+  await db
+    .insert(t.mealBookings)
+    .values({ residentId, date, meal, booked, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [
+        t.mealBookings.residentId,
+        t.mealBookings.date,
+        t.mealBookings.meal,
+      ],
+      set: { booked, updatedAt: new Date() },
+    });
+
+  const [day] = await getMealBookings(residentId, date, 1);
+  return day as DayBookings;
+}
+
+/** How many plates each meal needs on `date`, for the mess to cook to. */
+export async function mealHeadcount(
+  date: string
+): Promise<Record<MealType, number>> {
+  const counts = Object.fromEntries(MEAL_TYPES.map((m) => [m, 0])) as Record<
+    MealType,
+    number
+  >;
+
+  // Explicit choices first, then everyone the plan covers who didn't choose.
+  const chosen = await db
+    .select({
+      residentId: t.mealBookings.residentId,
+      meal: t.mealBookings.meal,
+      booked: t.mealBookings.booked,
+    })
+    .from(t.mealBookings)
+    .where(eq(t.mealBookings.date, date));
+
+  const decided = new Set<string>();
+  for (const row of chosen) {
+    decided.add(`${row.residentId}.${row.meal}`);
+    if (row.booked) counts[row.meal] += 1;
+  }
+
+  const plans = await db
+    .select()
+    .from(t.foodPreferences)
+    .where(eq(t.foodPreferences.recurring, true));
+
+  for (const plan of plans) {
+    const paused =
+      plan.pauseFrom !== null &&
+      plan.pauseTo !== null &&
+      date >= plan.pauseFrom &&
+      date <= plan.pauseTo;
+    if (paused) continue;
+
+    for (const meal of MEAL_TYPES) {
+      if (!plan[meal]) continue;
+      if (decided.has(`${plan.residentId}.${meal}`)) continue;
+      counts[meal] += 1;
+    }
+  }
+
+  return counts;
 }
 
 /* ---------------------------------------------------------------- timeline */
@@ -663,6 +851,7 @@ export async function getAttendanceSummary(
     locationLabel: r.locationLabel,
     photoUri: r.photoUri,
     withinGeofence: r.withinGeofence,
+    faceMatchDistance: r.faceMatchDistance,
   }));
 
   const marked = new Set(records.map((r) => r.date));
@@ -691,8 +880,9 @@ export async function markAttendance(
     locationLabel: string;
     photoUri: string | null;
     withinGeofence: boolean;
+    faceMatchDistance: number | null;
   }
-): Promise<void> {
+): Promise<string> {
   const id = await nextId("ATT");
   await db.insert(t.attendanceRecords).values({
     ...input,
@@ -700,6 +890,18 @@ export async function markAttendance(
     residentId,
     date: isoDate(new Date()),
   });
+  return id;
+}
+
+/** Attaches the audit photo once it has been written under its record id. */
+export async function setAttendancePhotoUri(
+  id: string,
+  photoUri: string
+): Promise<void> {
+  await db
+    .update(t.attendanceRecords)
+    .set({ photoUri })
+    .where(eq(t.attendanceRecords.id, id));
 }
 
 export async function hasMarkedToday(residentId: string): Promise<boolean> {
@@ -783,12 +985,20 @@ export async function listMessEntries(
     .where(eq(t.messEntries.residentId, residentId))
     .orderBy(desc(t.messEntries.enteredAt));
 
-  return rows.map((r) => ({
+  return rows.map(toMessEntry);
+}
+
+function toMessEntry(
+  r: typeof t.messEntries.$inferSelect
+): MessEntryRecord {
+  return {
     id: r.id,
     meal: r.meal,
     method: r.method,
     enteredAt: iso(r.enteredAt),
-  }));
+    withinGeofence: r.withinGeofence,
+    locationLabel: r.locationLabel,
+  };
 }
 
 /**
@@ -799,27 +1009,37 @@ export async function listMessEntries(
 export async function createMessEntry(
   residentId: string,
   meal: MealType,
-  method: AttendanceRecord["method"]
+  method: AttendanceRecord["method"],
+  /** Where the counter device was. Absent when it couldn't get a fix. */
+  place: {
+    latitude: number;
+    longitude: number;
+    withinGeofence: boolean;
+    locationLabel: string;
+  } | null = null
 ): Promise<{ entry: MessEntryRecord; recorded: boolean }> {
   const date = isoDate(new Date());
   const id = await nextId("MSS");
 
   const inserted = await db
     .insert(t.messEntries)
-    .values({ id, residentId, meal, method, date })
+    .values({
+      id,
+      residentId,
+      meal,
+      method,
+      date,
+      latitude: place?.latitude ?? null,
+      longitude: place?.longitude ?? null,
+      withinGeofence: place?.withinGeofence ?? null,
+      locationLabel: place?.locationLabel ?? null,
+    })
     .onConflictDoNothing({
       target: [t.messEntries.residentId, t.messEntries.meal, t.messEntries.date],
     })
     .returning();
 
-  const toRecord = (r: typeof t.messEntries.$inferSelect): MessEntryRecord => ({
-    id: r.id,
-    meal: r.meal,
-    method: r.method,
-    enteredAt: iso(r.enteredAt),
-  });
-
-  if (inserted[0]) return { entry: toRecord(inserted[0]), recorded: true };
+  if (inserted[0]) return { entry: toMessEntry(inserted[0]), recorded: true };
 
   // Lost the race, or a genuine repeat — either way, report what's on file.
   const [existing] = await db
@@ -840,7 +1060,7 @@ export async function createMessEntry(
     throw new Error(`Could not record a mess entry for ${residentId}.`);
   }
 
-  return { entry: toRecord(existing), recorded: false };
+  return { entry: toMessEntry(existing), recorded: false };
 }
 
 /** The room a resident currently holds, or null if they have none yet. */

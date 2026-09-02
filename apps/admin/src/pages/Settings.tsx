@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { MapPin } from "lucide-react";
 import {
   GEOFENCE_LIMITS,
+  type AdminTourMedia,
   type AttendanceGeofence,
+  type TourMediaKind,
   type UpdateGeofenceBody,
 } from "@proj/shared";
 import { api, messageOf } from "../api";
@@ -200,6 +202,215 @@ export default function Settings() {
             : "Still on the shipped default — nobody has changed this yet."}
         </p>
       </div>
+
+      <TourMedia />
     </div>
   );
+}
+
+/**
+ * Photos and 360° panoramas for the property tour.
+ *
+ * Without this there was no way to get a picture into the app at all: every
+ * space shipped with `panoramaUri: null`, and residents deciding whether to
+ * move in saw a grey gradient captioned "no photo uploaded yet".
+ */
+function TourMedia() {
+  const toast = useToast();
+
+  const [data, setData] = useState<AdminTourMedia | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [spaceId, setSpaceId] = useState("");
+  const [kind, setKind] = useState<TourMediaKind>("photo");
+  const [caption, setCaption] = useState("");
+  const [url, setUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const next = await api.tourMedia();
+      setData(next);
+      setSpaceId((current) => current || (next.spaces[0]?.id ?? ""));
+    } catch (err) {
+      setError(messageOf(err));
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!spaceId || busy) return;
+
+    setBusy(true);
+    try {
+      // Either an uploaded file or a link to one hosted elsewhere. The file
+      // wins when both are filled in, since picking one is the deliberate act.
+      const imageBase64 = file ? await readAsDataUrl(file) : undefined;
+
+      await api.addTourMedia({
+        spaceId,
+        kind,
+        caption: caption.trim(),
+        ...(imageBase64 ? { imageBase64 } : { url: url.trim() }),
+      });
+
+      setCaption("");
+      setUrl("");
+      setFile(null);
+      await load();
+      toast.show(kind === "panorama" ? "Panorama added" : "Photo added", "success");
+    } catch (err) {
+      toast.show(messageOf(err), "danger");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await api.removeTourMedia(id);
+      await load();
+    } catch (err) {
+      toast.show(messageOf(err), "danger");
+    }
+  };
+
+  if (error) return <ErrorState message={error} />;
+  if (!data) return <Loading />;
+
+  return (
+    <div className="stack" style={{ gap: 20 }}>
+      <PageHeader
+        title="Tour photos"
+        description="What residents see under “Look around”. A space with nothing here shows a placeholder."
+      />
+
+      <form className="card stack" onSubmit={submit}>
+        <div className="form-grid">
+          <div className="field">
+            <label htmlFor="space">Space</label>
+            <select
+              id="space"
+              value={spaceId}
+              onChange={(e) => setSpaceId(e.target.value)}
+            >
+              {data.spaces.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="kind">Type</label>
+            <select
+              id="kind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as TourMediaKind)}
+            >
+              <option value="photo">Photo</option>
+              <option value="panorama">360° panorama</option>
+            </select>
+            <p className="caption">
+              A panorama has to be equirectangular — a normal photo won't pan
+              correctly.
+            </p>
+          </div>
+
+          <div className="field">
+            <label htmlFor="file">Image file</label>
+            <input
+              id="file"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="url">…or a link to one</label>
+            <input
+              id="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://…"
+              disabled={file !== null}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="caption">Caption</label>
+            <input
+              id="caption"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Study desk and window"
+            />
+          </div>
+        </div>
+
+        <div className="btn-row">
+          <button
+            className="btn"
+            type="submit"
+            disabled={busy || !spaceId || (!file && url.trim() === "")}
+          >
+            {busy ? "Uploading…" : "Add to the tour"}
+          </button>
+        </div>
+      </form>
+
+      {data.spaces.map((s) => {
+        const mine = data.media.filter((m) => m.spaceId === s.id);
+
+        return (
+          <div className="card" key={s.id}>
+            <h2 className="card-title">{s.name}</h2>
+
+            {mine.length === 0 ? (
+              <p className="muted small">
+                Nothing uploaded — this space shows a placeholder in the app.
+              </p>
+            ) : (
+              <div className="stack-sm">
+                {mine.map((m) => (
+                  <div className="kv" key={m.id}>
+                    <dt>
+                      {m.kind === "panorama" ? "360°" : "Photo"}
+                      {m.caption ? ` · ${m.caption}` : ""}
+                    </dt>
+                    <dd>
+                      <button
+                        className="btn secondary"
+                        type="button"
+                        onClick={() => void remove(m.id)}
+                      >
+                        Remove
+                      </button>
+                    </dd>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Files come off the input as blobs; the API takes base64. */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Couldn't read that file."));
+    reader.readAsDataURL(file);
+  });
 }

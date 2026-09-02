@@ -365,8 +365,10 @@ export const INVENTORY_TEMPLATE = [
 ];
 
 /**
- * Tour spaces. `panoramaUri` is null until the property uploads an
- * equirectangular photo — the viewer shows a placeholder until then.
+ * Tour spaces: what the hostel is made of, which doesn't change. The pictures
+ * of them do, and live in `tour_media` — `withTourMedia` lays whatever has
+ * been uploaded over this list. `panoramaUri` here is the fallback for a space
+ * with nothing uploaded, and the viewer shows a placeholder for those.
  */
 export const TOUR_SPACES = [
   {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
-import { CameraOff, CheckCircle2, Info, ScanLine } from "lucide-react";
+import { CameraOff, CheckCircle2, Info, MapPin, ScanLine } from "lucide-react";
 import { MEAL_LABELS, type MessScanResult } from "@proj/shared";
 import { api, messageOf } from "../api";
 import { PageHeader } from "../ui";
@@ -23,13 +23,45 @@ export default function MessDesk() {
   const busy = useRef(false);
   const lastToken = useRef<string | null>(null);
 
+  /**
+   * The counter's own position, sent with every scan so an entry records where
+   * the plate was handed over. Watched rather than fetched per scan: a fix can
+   * take seconds, and nobody should wait at the counter for one. A desk that
+   * refuses location still scans — the entry is just stored without a place.
+   */
+  const here = useRef<GeolocationCoordinates | null>(null);
+  // Mirrored into state only so the "no location" notice can react to it; the
+  // scan itself reads the ref, which never goes stale inside the callback.
+  const [located, setLocated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocated(false);
+      return;
+    }
+
+    const watch = navigator.geolocation.watchPosition(
+      (position) => {
+        here.current = position.coords;
+        setLocated(true);
+      },
+      () => {
+        here.current = null;
+        setLocated(false);
+      },
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watch);
+  }, []);
+
   const redeem = useCallback(async (token: string) => {
     if (busy.current || token === lastToken.current) return;
     busy.current = true;
     lastToken.current = token;
 
     try {
-      const result = await api.scanMessPass(token);
+      const result = await api.scanMessPass(token, here.current);
       setLast(result);
       setScanError(null);
       if (result.recorded) setServed((n) => n + 1);
@@ -112,6 +144,14 @@ export default function MessDesk() {
         description="Scan each resident's pass as you hand over their plate. One plate per person per meal."
       />
 
+      {located === false && (
+        <p className="inline small muted">
+          <MapPin size={14} strokeWidth={2} />
+          This device isn't sharing its location, so entries won't record where
+          they were scanned. Allow location to log it.
+        </p>
+      )}
+
       <div className="detail-grid">
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           {cameraError ? (
@@ -167,6 +207,17 @@ export default function MessDesk() {
                     Already had {MEAL_LABELS[last.meal].toLowerCase()} today
                   </p>
                 )}
+
+                {/* Where the scan happened. Never blocks a plate — it's here so
+                    a counter scanning from the wrong place is visible. */}
+                <p className="inline small muted">
+                  <MapPin size={13} strokeWidth={2} />
+                  {last.withinGeofence === null
+                    ? "Location off — entry recorded without one"
+                    : last.withinGeofence
+                      ? (last.locationLabel ?? "On site")
+                      : `Scanned off site · ${last.locationLabel}`}
+                </p>
               </div>
             ) : (
               <p className="inline muted small">

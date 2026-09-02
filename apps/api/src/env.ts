@@ -51,6 +51,24 @@ export const env = {
     process.env.NODE_ENV === "production"
       ? required("MESS_PASS_SECRET")
       : (process.env.MESS_PASS_SECRET ?? "dev-only-mess-pass-secret"),
+  /**
+   * Signs attendance liveness challenges. Same reasoning as the mess pass: an
+   * unset value in production would let anyone mint a challenge for the action
+   * their prepared photo happens to satisfy.
+   */
+  livenessSecret:
+    process.env.NODE_ENV === "production"
+      ? required("LIVENESS_SECRET")
+      : (process.env.LIVENESS_SECRET ?? "dev-only-liveness-secret"),
+  /**
+   * Euclidean distance below which two face descriptors are the same person.
+   * face-api's general-purpose default is 0.6; attendance is tightened a
+   * little because letting a lookalike through costs more than asking someone
+   * to retake a photo. Raise it if residents get rejected in poor light.
+   */
+  faceMatchThreshold: Number(process.env.FACE_MATCH_THRESHOLD ?? 0.55),
+  /** Where attendance face photos are written for the audit trail. */
+  uploadsDir: process.env.UPLOADS_DIR ?? resolve(__dirname, "../uploads"),
 } as const;
 
 /** True for the allow-listed demo / App Review numbers. */

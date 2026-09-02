@@ -227,6 +227,17 @@ export interface TourHotspot {
   target: string;
 }
 
+/**
+ * A still of a space. `uri` is a path under the API's media route, so the app
+ * prefixes it with the API base URL — the same shape as a payment
+ * authorisation URL. Externally hosted images are absolute and pass through.
+ */
+export interface TourPhoto {
+  id: string;
+  uri: string;
+  caption: string;
+}
+
 export interface TourSpace {
   id: string;
   name: string;
@@ -234,7 +245,42 @@ export interface TourSpace {
   description: string;
   /** Equirectangular image. Null until the property uploads one. */
   panoramaUri: string | null;
+  /** Ordinary photos of the same space, in the order the property set. */
+  photos: TourPhoto[];
   hotspots: TourHotspot[];
+}
+
+/* ------------------------------------------------------------ tour media */
+
+export type TourMediaKind = "photo" | "panorama";
+
+export interface TourMediaItem {
+  id: string;
+  spaceId: string;
+  kind: TourMediaKind;
+  uri: string;
+  caption: string;
+  position: number;
+  uploadedAt: string;
+}
+
+/**
+ * Everything the media manager needs in one call: the spaces that exist (the
+ * catalogue lives on the server) and what's been uploaded against them.
+ */
+export interface AdminTourMedia {
+  spaces: { id: string; name: string }[];
+  media: TourMediaItem[];
+}
+
+export interface AddTourMediaBody {
+  spaceId: string;
+  kind: TourMediaKind;
+  caption?: string;
+  /** A base64 JPEG/PNG to store, or… */
+  imageBase64?: string;
+  /** …an absolute URL to an image already hosted somewhere. One or the other. */
+  url?: string;
 }
 
 /** A piece of furniture the resident can arrange on the room plan. */
@@ -305,6 +351,9 @@ export const ADMIN_ONBOARDING_ROUTES = {
   reviewKyc: (id: string) => `/api/admin/onboarding/${id}/kyc/review`,
   issueLease: (id: string) => `/api/admin/onboarding/${id}/lease`,
   compatibility: (id: string) => `/api/admin/onboarding/${id}/compatibility`,
+
+  tourMedia: "/api/admin/tours/media",
+  tourMediaItem: (id: string) => `/api/admin/tours/media/${id}`,
 } as const;
 
 export interface ReviewKycBody {

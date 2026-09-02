@@ -56,7 +56,7 @@ async function seed(): Promise<void> {
     dob: "2004-03-18",
     gender: "male",
     kycType: "aadhaar",
-    kycNumber: "987654321234",
+    kycNumber: "987654321238",
     mobile: DEMO_MOBILE,
     accountStatus: "approved",
     mpin: null,
@@ -106,12 +106,23 @@ async function seed(): Promise<void> {
     },
   ]);
 
+  // On a recurring plan: breakfast, lunch and dinner every day.
   await db.insert(t.foodPreferences).values({
     residentId: DEMO_RESIDENT_ID,
+    recurring: true,
     breakfast: true,
     lunch: true,
     snacks: false,
     dinner: true,
+  });
+
+  // …and skipping tomorrow's lunch, which is what a day-by-day choice
+  // overriding the plan looks like.
+  await db.insert(t.mealBookings).values({
+    residentId: DEMO_RESIDENT_ID,
+    date: isoDate(daysAgo(-1)),
+    meal: "lunch",
+    booked: false,
   });
 
   /* ---------------------------------------------------------- requests */
@@ -296,7 +307,7 @@ async function seedSecondResident(): Promise<void> {
     dob: "2005-06-11",
     gender: "female",
     kycType: "aadhaar",
-    kycNumber: "112233445566",
+    kycNumber: "912233445562",
     mobile: DEMO_MOBILE_2,
     accountStatus: "approved",
     mpin: null,
@@ -334,13 +345,27 @@ async function seedSecondResident(): Promise<void> {
     receiptNo: "RCPT/2026/2001",
   });
 
+  // The other side of the same feature: no recurring plan at all, just meals
+  // picked a day at a time.
   await db.insert(t.foodPreferences).values({
     residentId: DEMO_RESIDENT_ID_2,
-    breakfast: true,
-    lunch: true,
-    snacks: true,
-    dinner: true,
+    recurring: false,
   });
+
+  await db.insert(t.mealBookings).values([
+    {
+      residentId: DEMO_RESIDENT_ID_2,
+      date: isoDate(new Date()),
+      meal: "dinner",
+      booked: true,
+    },
+    {
+      residentId: DEMO_RESIDENT_ID_2,
+      date: isoDate(daysAgo(-1)),
+      meal: "breakfast",
+      booked: true,
+    },
+  ]);
 }
 
 /**
@@ -406,7 +431,7 @@ async function seedPendingRegistrations(): Promise<void> {
       dob: "2005-07-22",
       gender: "female" as const,
       kycType: "aadhaar" as const,
-      kycNumber: "432198765012",
+      kycNumber: "432198765010",
       mobile: "9811100011",
       accountStatus: "pending_approval" as const,
       createdAt: daysAgo(1),
@@ -439,7 +464,7 @@ async function seedPendingRegistrations(): Promise<void> {
       dob: "2004-05-14",
       gender: "female" as const,
       kycType: "aadhaar" as const,
-      kycNumber: "665544332211",
+      kycNumber: "665544332219",
       mobile: "9811100044",
       accountStatus: "rejected" as const,
       createdAt: daysAgo(8),

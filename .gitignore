@@ -34,3 +34,6 @@ yarn-error.log*
 
 # Store signing / API credentials — never commit
 credentials/
+
+# Attendance face photos written at runtime
+apps/api/uploads/
