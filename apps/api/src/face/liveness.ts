@@ -10,7 +10,7 @@ import type { FaceSample } from "./index";
 import type { faceapi } from "./models";
 
 /**
- * Liveness for facial attendance.
+ * Liveness for the facial checks — attendance, and self-recorded mess entry.
  *
  * Matching a face against the enrolled one answers "whose face is this?". It
  * does not answer "is this a face, here, now" — a photo of the resident on
@@ -86,14 +86,16 @@ function challengeError(message: string): HttpError {
  * Returns the action a token was issued for, or throws. A token minted for
  * someone else is treated the same as an expired one — there's nothing useful
  * to tell apart.
+ *
+ * `restart` completes "That check timed out. …", so the resident is told to
+ * start the thing they were actually doing again.
  */
 export function readLivenessChallenge(
   token: string,
-  residentId: string
+  residentId: string,
+  restart: string
 ): LivenessAction {
-  const stale = challengeError(
-    "That check timed out. Start marking attendance again."
-  );
+  const stale = challengeError(`That check timed out. ${restart}`);
 
   const parts = token.split(".");
   if (parts.length !== 5) throw stale;

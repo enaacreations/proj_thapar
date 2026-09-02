@@ -10,8 +10,10 @@ import {
   type AdminUser,
   type AllocateRoomBody,
   type ApiError,
-  type AttendanceGeofence,
+  type GeofenceKind,
   type MessScanResult,
+  type SiteGeofence,
+  type SiteGeofences,
   type UpdateGeofenceBody,
   type PaymentPlanBody,
   type PaymentSummary,
@@ -321,9 +323,9 @@ export const api = {
     }),
 
   /* settings */
-  geofence: () => request<AttendanceGeofence>(ADMIN_ROUTES.geofence),
-  saveGeofence: (body: UpdateGeofenceBody) =>
-    request<AttendanceGeofence>(ADMIN_ROUTES.geofence, {
+  geofences: () => request<SiteGeofences>(ADMIN_ROUTES.geofences),
+  saveGeofence: (kind: GeofenceKind, body: UpdateGeofenceBody) =>
+    request<SiteGeofence>(ADMIN_ROUTES.geofence(kind), {
       method: "PUT",
       body,
     }),

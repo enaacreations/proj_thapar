@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, MapPin, Search, X } from "lucide-react-native";
@@ -22,11 +27,28 @@ import { ProgressRing } from "../../src/components/ProgressRing";
 import { Screen } from "../../src/components/Screen";
 import { Text } from "../../src/components/Text";
 
+/**
+ * Tiles per row. The width that goes with it is measured, not guessed: a
+ * percentage width and a fixed gap don't compose, because the percentage
+ * scales with the device and the gap doesn't. Three 31% tiles plus two 12dp
+ * gaps came to 329dp inside a 328dp phone, so the third tile wrapped and left
+ * a column of dead space — on that handset only, which is what made it look
+ * like a rendering problem rather than arithmetic.
+ */
+const COLUMNS = 3;
+
 export default function HomeScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [query, setQuery] = useState("");
+
+  // Recomputed on rotation and on a foldable opening, which a static width
+  // in the stylesheet wouldn't survive.
+  const { width } = useWindowDimensions();
+  const tileWidth =
+    (width - layout.screenPadding * 2 - layout.cardGap * (COLUMNS - 1)) /
+    COLUMNS;
 
   const profile = useAsync(() => api.profile(), []);
   const room = useAsync(() => api.room(), []);
@@ -71,7 +93,7 @@ export default function HomeScreen() {
     return (
       <Card
         key={module.key}
-        style={styles.tile}
+        style={[styles.tile, { width: tileWidth }]}
         accessibilityLabel={module.name}
         onPress={() => router.push(module.href as never)}
       >
@@ -255,12 +277,19 @@ const styles = StyleSheet.create({
     gap: layout.cardGap,
   },
   tile: {
-    width: "31%",
+    // Width is applied inline from the measured column size.
     flexGrow: 0,
     flexShrink: 0,
     gap: 4,
     minHeight: 96,
     paddingVertical: space.sm,
+    /**
+     * Card pads all four sides with cardPadding (16). Overriding only the
+     * vertical left 32dp of horizontal padding on a ~101dp tile, so the label
+     * had ~68dp to work with and Android broke "Attendance" and "Housekeeping"
+     * mid-word. A grid cell this small can't carry full card padding.
+     */
+    paddingHorizontal: space.xs,
     alignItems: "center",
   },
   tileName: { textAlign: "center" },

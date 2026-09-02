@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { GEOFENCE_LIMITS, type UpdateGeofenceBody } from "@proj/shared";
+import {
+  GEOFENCE_KINDS,
+  GEOFENCE_LIMITS,
+  type GeofenceKind,
+  type UpdateGeofenceBody,
+} from "@proj/shared";
 import { HttpError } from "../http-error";
 import { adminOf } from "../admin-auth";
 import * as settings from "../data/admin-settings";
@@ -22,11 +27,17 @@ function requireNumber(
   return value;
 }
 
-adminSettingsRouter.get("/settings/geofence", async (_req, res) => {
-  res.json(await settings.getGeofence());
+/** Both circles at once, so the settings page loads in one round trip. */
+adminSettingsRouter.get("/settings/geofences", async (_req, res) => {
+  res.json(await settings.getGeofences());
 });
 
-adminSettingsRouter.put("/settings/geofence", async (req, res) => {
+adminSettingsRouter.put("/settings/geofence/:kind", async (req, res) => {
+  const kind = req.params.kind;
+  if (!GEOFENCE_KINDS.includes(kind as GeofenceKind)) {
+    throw HttpError.notFound(`There's no "${kind}" geofence to set.`);
+  }
+
   const body = req.body as Partial<UpdateGeofenceBody>;
 
   const label =
@@ -36,6 +47,7 @@ adminSettingsRouter.put("/settings/geofence", async (req, res) => {
   }
 
   const saved = await settings.saveGeofence(
+    kind as GeofenceKind,
     {
       latitude: requireNumber(body.latitude, "Latitude", GEOFENCE_LIMITS.latitude),
       longitude: requireNumber(

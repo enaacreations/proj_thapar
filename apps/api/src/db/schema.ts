@@ -399,13 +399,21 @@ export const messEntries = pgTable(
     /** Serving day, so the one-plate-per-meal rule has something to key on. */
     date: date("date").notNull(),
     /**
-     * Where the counter device was when it scanned. Nullable: a desktop
-     * scanner with location blocked still has to be able to serve food, and
-     * rows written before this column existed have nothing to backfill from.
+     * Where the entry was taken. What that means depends on `method`, and so
+     * does how much weight it carries:
      *
-     * Recorded, not enforced — a scan from outside the fence is still a plate
-     * handed over. It's kept so the office can see a counter that has drifted
-     * off site before deciding to act on it.
+     * For "qr", it's where the counter device was, recorded but not enforced —
+     * a scan from outside the fence is still a plate handed over, and a desktop
+     * scanner with location blocked still has to be able to serve food. It's
+     * kept so the office can see a counter that has drifted off site.
+     *
+     * For "facial" and "biometric" it's where the resident's phone was, and it
+     * *is* enforced: nobody at the mess attests to a self-recorded entry, so
+     * the API refuses one outside the fence. Those rows are therefore never
+     * within_geofence = false.
+     *
+     * Nullable throughout: rows written before this column existed have nothing
+     * to backfill from.
      */
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
@@ -997,10 +1005,27 @@ export const amenityBookings = pgTable(
  */
 export const siteSettings = pgTable("site_settings", {
   id: text("id").primaryKey(),
+  /** The wide circle attendance is measured against. */
   geofenceLatitude: doublePrecision("geofence_latitude").notNull(),
   geofenceLongitude: doublePrecision("geofence_longitude").notNull(),
   geofenceRadiusMetres: integer("geofence_radius_metres").notNull(),
   geofenceLabel: text("geofence_label").notNull(),
+  /**
+   * The tight circle a self-recorded mess entry is refused outside of.
+   *
+   * Nullable as a set: null means no mess fence has been drawn, and the mess
+   * falls back to the hostel circle above. That fallback is deliberate — the
+   * alternative is a deployment that upgrades and finds nobody can collect a
+   * meal because a column defaulted to coordinates nobody chose.
+   */
+  messGeofenceLatitude: doublePrecision("mess_geofence_latitude"),
+  messGeofenceLongitude: doublePrecision("mess_geofence_longitude"),
+  messGeofenceRadiusMetres: integer("mess_geofence_radius_metres"),
+  messGeofenceLabel: text("mess_geofence_label"),
+  messGeofenceUpdatedAt: timestamp("mess_geofence_updated_at", {
+    withTimezone: true,
+  }),
+  messGeofenceUpdatedBy: text("mess_geofence_updated_by"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

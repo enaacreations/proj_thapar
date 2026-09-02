@@ -1063,6 +1063,32 @@ export async function createMessEntry(
   return { entry: toMessEntry(existing), recorded: false };
 }
 
+/**
+ * The entry already on file for this resident and meal today, if there is one.
+ *
+ * `createMessEntry` is still the authority — it settles races on the unique
+ * index. This only lets a caller find out cheaply, before spending seconds on
+ * a face check the resident turns out not to need.
+ */
+export async function messEntryToday(
+  residentId: string,
+  meal: MealType
+): Promise<MessEntryRecord | null> {
+  const [existing] = await db
+    .select()
+    .from(t.messEntries)
+    .where(
+      and(
+        eq(t.messEntries.residentId, residentId),
+        eq(t.messEntries.meal, meal),
+        eq(t.messEntries.date, isoDate(new Date()))
+      )
+    )
+    .limit(1);
+
+  return existing ? toMessEntry(existing) : null;
+}
+
 /** The room a resident currently holds, or null if they have none yet. */
 export async function roomNumberOf(residentId: string): Promise<string | null> {
   const [room] = await db

@@ -1,11 +1,16 @@
+import type { GeofenceKind } from "@proj/shared";
 import { getGeofence } from "./data/admin-settings";
 
 /**
- * Where a captured point sits relative to the site fence.
+ * Where a captured point sits relative to one of the site's fences.
  *
- * Attendance and the mess counter both need this, and both read the fence
- * per-capture rather than caching it: an admin moving the fence should take
- * effect on the next scan, not on the next API restart.
+ * Which fence is never implicit: "hostel" is the wide circle attendance is
+ * measured against, "mess" the tight one a self-recorded meal is refused
+ * outside of. Passing the kind at every call site is deliberate — a default
+ * here is how the mess would quietly end up gated on the hostel's radius.
+ *
+ * The fence is read per-capture rather than cached: an admin moving it should
+ * take effect on the next scan, not on the next API restart.
  */
 
 export interface Point {
@@ -35,8 +40,21 @@ export function metresBetween(a: Point, b: Point): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-export async function placeAgainstFence(point: Point): Promise<FencePlacement> {
-  const fence = await getGeofence();
+/**
+ * What the "…m from X" label calls each fence when a point falls outside it.
+ * The resident's own name for the place, not the configured label, which is a
+ * site name like "Thapar, Block B" and reads oddly after "300 m from".
+ */
+const OUTSIDE_NOUN: Record<GeofenceKind, string> = {
+  hostel: "hostel",
+  mess: "the mess",
+};
+
+export async function placeAgainstFence(
+  point: Point,
+  kind: GeofenceKind
+): Promise<FencePlacement> {
+  const fence = await getGeofence(kind);
   const distanceMetres = metresBetween(fence, point);
   const withinGeofence = distanceMetres <= fence.radiusMetres;
 
@@ -45,6 +63,6 @@ export async function placeAgainstFence(point: Point): Promise<FencePlacement> {
     distanceMetres,
     locationLabel: withinGeofence
       ? fence.locationLabel
-      : `${Math.round(distanceMetres)} m from hostel`,
+      : `${Math.round(distanceMetres)} m from ${OUTSIDE_NOUN[kind]}`,
   };
 }
