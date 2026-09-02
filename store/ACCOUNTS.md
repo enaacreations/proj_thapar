@@ -24,13 +24,22 @@ App Store Connect: https://appstoreconnect.apple.com/apps/6807443425
 
 | | |
 | --- | --- |
-| Build submitted | 1.0.0 (5) — **Waiting for Review** (Beta App Review) |
-| Internal group | **Core members** — surbhichordia16@gmail.com invited; usable now, no review |
-| External group | **Demo testers** — public link enabled |
+| Build in review | 1.0.0 (**6**) — the UniLiv-named build, Waiting for Beta App Review |
+| Internal group | **Core members** — surbhichordia16@gmail.com, piyush.chordia1990@icloud.com. Works immediately, no review. |
+| External group | **Demo testers** — piyush, malaymalay25@gmail.com, malay@enaacreations.com, Shantanu.sna@gmail.com |
 | Public link | https://testflight.apple.com/join/q9veBfrw |
 
-The public link only admits testers once Apple approves the build; the internal
-group works immediately. Beta App Review is typically 24–48 hours.
+Build 5 carried the old "Thapar Hostel" springboard name, so it was pulled from
+review and build 6 submitted in its place — Apple allows only one build per
+version in Beta App Review at a time.
+
+**Internal testers must first accept their App Store Connect invitation.** Apple
+only lists accepted team members as eligible internal testers, which is why the
+three newly invited addresses are not in Core members yet. Once each accepts,
+add them at TestFlight -> Core members -> Testers (+).
+
+ASC users were invited with the **Marketing** role — the least-privileged role
+Apple allows for an internal tester.
 
 ## Google Play
 
