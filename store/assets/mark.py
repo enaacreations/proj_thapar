@@ -1,4 +1,4 @@
-# The Thapar Hostel mark: a residence block — flat roof slab, a grid of rooms,
+# The UniLiv mark: a residence block — flat roof slab, a grid of rooms,
 # one shared doorway. The repeated windows are what say "hostel" rather than
 # "house"; a lone pitched roof reads as a generic home button.
 

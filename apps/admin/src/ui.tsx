@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
@@ -24,6 +25,7 @@ import {
   type ResidentAccountStatus,
   type ServiceRequestKind,
 } from "@proj/shared";
+import type { AppModule } from "./modules";
 
 /* ----------------------------------------------------------------- badges */
 
@@ -218,6 +220,48 @@ export function PageHeader({
   );
 }
 
+/**
+ * The launcher tile, shared by Home and the Operations index. `lead` is the
+ * big three-across card Home shows, with the module's own sentence under the
+ * name; `compact` is the smaller square Operations lists its areas as.
+ */
+export function ModuleTile({
+  module,
+  nudge,
+  variant = "lead",
+}: {
+  module: AppModule;
+  nudge: string | null;
+  variant?: "lead" | "compact";
+}) {
+  const [from, to, tint, tint2] = module.gradient;
+
+  return (
+    <Link
+      className={`tile ${variant}`}
+      to={module.path}
+      // The four colours the tile's CSS paints itself from.
+      style={
+        {
+          "--tile-from": from,
+          "--tile-to": to,
+          "--tile-tint": tint,
+          "--tile-tint-2": tint2,
+        } as CSSProperties
+      }
+    >
+      <span className="tile-badge">
+        <module.icon size={variant === "lead" ? 30 : 22} strokeWidth={2} />
+      </span>
+      <span className="tile-name">{module.name}</span>
+      {variant === "lead" && (
+        <span className="tile-sub">{module.description}</span>
+      )}
+      {nudge && <span className="nudge">{nudge}</span>}
+    </Link>
+  );
+}
+
 export function BackLink({ to, label }: { to: string; label: string }) {
   return (
     <Link className="back-link hover-elevate active-elevate-2" to={to}>
@@ -243,7 +287,7 @@ export function Stat({
       <p className="caption">{label}</p>
       <p className="stat-value" style={{ color: `var(--${tone})` }}>
         {value ?? "—"}
-        {suffix && <span className="small muted">{suffix}</span>}
+        {suffix && <span className="stat-suffix">{suffix}</span>}
       </p>
     </div>
   );

@@ -345,11 +345,18 @@ export const messEntries = pgTable(
       .references(() => residents.id, { onDelete: "cascade" }),
     meal: text("meal").$type<MealType>().notNull(),
     method: text("method").$type<AttendanceMethod>().notNull(),
+    /** Serving day, so the one-plate-per-meal rule has something to key on. */
+    date: date("date").notNull(),
     enteredAt: timestamp("entered_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("mess_resident_idx").on(t.residentId, t.enteredAt)]
+  (t) => [
+    index("mess_resident_idx").on(t.residentId, t.enteredAt),
+    // One plate per resident per meal per day, enforced here and not just in
+    // code — a double scan at the counter must not inflate the meal count.
+    uniqueIndex("mess_resident_meal_date_key").on(t.residentId, t.meal, t.date),
+  ]
 );
 
 export const notifications = pgTable(
@@ -891,3 +898,21 @@ export const amenityBookings = pgTable(
     index("amenity_booking_slot_idx").on(t.amenityId, t.date, t.startTime),
   ]
 );
+
+/**
+ * Console-editable settings. One row, keyed "default" — this deployment serves
+ * a single property, so a settings table beats a properties table until there
+ * is a second campus to scope by.
+ */
+export const siteSettings = pgTable("site_settings", {
+  id: text("id").primaryKey(),
+  geofenceLatitude: doublePrecision("geofence_latitude").notNull(),
+  geofenceLongitude: doublePrecision("geofence_longitude").notNull(),
+  geofenceRadiusMetres: integer("geofence_radius_metres").notNull(),
+  geofenceLabel: text("geofence_label").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  /** Admin display name, kept as free text so deleting a user can't blank it. */
+  updatedBy: text("updated_by"),
+});

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@proj/shared": "*",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.548.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

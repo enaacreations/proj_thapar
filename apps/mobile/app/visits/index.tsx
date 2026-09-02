@@ -36,8 +36,6 @@ export default function VisitsList() {
             icon={CalendarHeart}
             title="No visits booked"
             description="Let the hostel know when a parent, relative or friend is coming — and add a meal for them if you like."
-            actionLabel="Book a visit"
-            onAction={() => router.push("/visits/new")}
           />
         ) : (
           data.map((visit) => (

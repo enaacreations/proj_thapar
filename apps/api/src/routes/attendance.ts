@@ -3,11 +3,9 @@ import type { AttendanceMethod, MarkAttendanceBody } from "@proj/shared";
 import { HttpError } from "../http-error";
 import { residentIdOf } from "../auth";
 import * as db from "../data/db";
+import { getGeofence } from "../data/admin-settings";
 
 export const attendanceRouter: Router = Router();
-
-/** Hostel centre point; attendance outside this radius is flagged, not blocked. */
-const HOSTEL = { latitude: 30.3549, longitude: 76.3626, radiusMetres: 300 };
 
 const METHODS: AttendanceMethod[] = ["facial", "biometric", "qr"];
 
@@ -52,18 +50,21 @@ attendanceRouter.post("/mark", async (req, res) => {
     throw HttpError.badRequest("You've already marked attendance today.");
   }
 
-  const distance = metresBetween(HOSTEL, {
+  // Read per-mark rather than caching: an admin moving the fence should take
+  // effect on the next attendance, not on the next API restart.
+  const fence = await getGeofence();
+  const distance = metresBetween(fence, {
     latitude: body.latitude,
     longitude: body.longitude,
   });
-  const withinGeofence = distance <= HOSTEL.radiusMetres;
+  const withinGeofence = distance <= fence.radiusMetres;
 
   await db.markAttendance(residentId, {
     method: body.method as AttendanceMethod,
     latitude: body.latitude,
     longitude: body.longitude,
     locationLabel: withinGeofence
-      ? "Thapar, Block B"
+      ? fence.locationLabel
       : `${Math.round(distance)} m from hostel`,
     photoUri: body.photoUri ?? null,
     withinGeofence,

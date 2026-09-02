@@ -75,7 +75,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Thapar Hostel checks your location only at the moment you mark attendance, to confirm you are on the hostel premises. It is never tracked in the background."
+          "locationWhenInUsePermission": "UniLiv checks your location only at the moment you mark attendance, to confirm you are on the hostel premises. It is never tracked in the background."
         }
       ],
       [

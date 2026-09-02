@@ -404,17 +404,47 @@ export interface CreateFeedbackBody {
 
 /* -------------------------------------------------------------- mess entry */
 
-export interface MessEntryBody {
-  method: AttendanceMethod;
-  meal: MealType;
-}
-
 export interface MessEntryRecord {
   id: string;
   meal: MealType;
   method: AttendanceMethod;
   enteredAt: string;
 }
+
+/**
+ * A resident's rotating mess pass. The phone shows it as a QR code and the
+ * counter scans it, so presence is proven by the counter's device being at the
+ * counter — the resident's phone never reports its own entry.
+ */
+export interface MessPass {
+  /** Signed, opaque to the client; the API is the only thing that reads it. */
+  token: string;
+  expiresAt: string;
+  /** How often the phone should ask for a fresh one. */
+  rotateSeconds: number;
+}
+
+/** What the counter posts after scanning a resident's pass. */
+export interface ScanMessPassBody {
+  token: string;
+}
+
+/** Confirmation the counter shows: who it was, and what they're owed. */
+export interface MessScanResult {
+  residentId: string;
+  residentName: string;
+  roomNumber: string | null;
+  meal: MealType;
+  enteredAt: string;
+  /**
+   * False when this resident was already served this meal — the entry is not
+   * double-counted and the counter is told rather than silently accepting.
+   */
+  recorded: boolean;
+}
+
+/** Rotation window, shared so the phone and the API agree on the maths. */
+export const MESS_PASS_ROTATE_SECONDS = 30;
 
 /* --------------------------------------------------------- notifications */
 
@@ -472,6 +502,7 @@ export const API_ROUTES = {
   feedback: "/api/feedback",
 
   messEntry: "/api/mess/entry",
+  messPass: "/api/mess/pass",
 
   requests: "/api/requests",
   notifications: "/api/notifications",

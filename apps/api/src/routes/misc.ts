@@ -1,41 +1,32 @@
 import { Router } from "express";
 import {
-  MEAL_LABELS,
-  type MealType,
-  type MessEntryBody,
+  MESS_PASS_ROTATE_SECONDS,
+  type MessPass,
   type ServiceRequestKind,
 } from "@proj/shared";
 import { HttpError } from "../http-error";
 import { residentIdOf } from "../auth";
+import { issueMessPass } from "../mess-pass";
 import * as db from "../data/db";
 
-/** Mess turnstile: face, fingerprint or QR, then the meal is logged. */
+/**
+ * Mess entry is recorded by the counter, not by the resident — see the admin
+ * scan route. All a resident's phone does here is display a rotating pass.
+ */
 export const messRouter: Router = Router();
 
 messRouter.get("/entry", async (req, res) => {
   res.json(await db.listMessEntries(residentIdOf(req)));
 });
 
-messRouter.post("/entry", async (req, res) => {
-  const body = req.body as Partial<MessEntryBody>;
-
-  if (typeof body.meal !== "string" || !(body.meal in MEAL_LABELS)) {
-    throw HttpError.badRequest("Which meal is this entry for?");
-  }
-  if (
-    body.method !== "facial" &&
-    body.method !== "biometric" &&
-    body.method !== "qr"
-  ) {
-    throw HttpError.badRequest("Scan your face, fingerprint or the QR code.");
-  }
-
-  const created = await db.createMessEntry(
-    residentIdOf(req),
-    body.meal as MealType,
-    body.method
-  );
-  res.status(201).json(created);
+messRouter.get("/pass", (req, res) => {
+  const pass = issueMessPass(residentIdOf(req));
+  const body: MessPass = {
+    token: pass.token,
+    expiresAt: pass.expiresAt.toISOString(),
+    rotateSeconds: MESS_PASS_ROTATE_SECONDS,
+  };
+  res.json(body);
 });
 
 /** One combined feed so "All requests" doesn't need four round-trips. */

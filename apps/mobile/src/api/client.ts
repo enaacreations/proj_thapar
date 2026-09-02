@@ -19,8 +19,8 @@ import {
   type LaundryRequest,
   type MaintenanceRequest,
   type MarkAttendanceBody,
-  type MessEntryBody,
   type MessEntryRecord,
+  type MessPass,
   type PaymentSummary,
   type RegistrationBody,
   type RegistrationResponse,
@@ -254,8 +254,8 @@ export const api = {
 
   /* mess + shared */
   messEntries: () => request<MessEntryRecord[]>(API_ROUTES.messEntry),
-  messEntry: (body: MessEntryBody) =>
-    post<MessEntryRecord>(API_ROUTES.messEntry, body),
+  /** A rotating pass to show at the counter; the counter records the entry. */
+  messPass: () => request<MessPass>(API_ROUTES.messPass),
   requests: (kind?: string) =>
     request<ServiceRequestSummary[]>(
       kind ? `${API_ROUTES.requests}?kind=${kind}` : API_ROUTES.requests

@@ -42,6 +42,15 @@ export const env = {
    */
   reviewOtpPhones: list("REVIEW_OTP_PHONES"),
   reviewOtpCode: process.env.REVIEW_OTP_CODE ?? "",
+  /**
+   * Signs mess passes. The dev fallback keeps `npm run dev` working on a fresh
+   * clone; in production an unset value would let anyone mint a valid pass, so
+   * it is required outright.
+   */
+  messPassSecret:
+    process.env.NODE_ENV === "production"
+      ? required("MESS_PASS_SECRET")
+      : (process.env.MESS_PASS_SECRET ?? "dev-only-mess-pass-secret"),
 } as const;
 
 /** True for the allow-listed demo / App Review numbers. */

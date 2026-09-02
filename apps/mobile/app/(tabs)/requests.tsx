@@ -24,6 +24,9 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "visit", label: "Visits" },
 ];
 
+/** Filters whose empty state stands on its own, with no way out offered. */
+const NO_HOME_ACTION: Filter[] = ["maintenance", "complaint", "visit"];
+
 export default function RequestsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -32,6 +35,7 @@ export default function RequestsScreen() {
   const { data, loading, error, reload } = useAsync(() => api.requests(), []);
   const visible =
     filter === "all" ? data : (data?.filter((r) => r.kind === filter) ?? null);
+  const showHomeAction = !NO_HOME_ACTION.includes(filter);
 
   return (
     <Screen
@@ -53,8 +57,10 @@ export default function RequestsScreen() {
           icon={ClipboardList}
           title="Nothing here yet"
           description="Anything you raise — a repair, a laundry pickup, a complaint or a visit — shows up here with its status."
-          actionLabel="Go to Home"
-          onAction={() => router.replace("/(tabs)")}
+          actionLabel={showHomeAction ? "Go to Home" : undefined}
+          onAction={
+            showHomeAction ? () => router.replace("/(tabs)") : undefined
+          }
         />
       ) : (
         visible.map((request) => (

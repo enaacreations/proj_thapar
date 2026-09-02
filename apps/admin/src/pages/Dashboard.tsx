@@ -1,66 +1,40 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { CheckCircle2, MapPin, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, MapPin } from "lucide-react";
 import { ADMIN_ROLE_LABELS } from "@proj/shared";
 import { useAuth } from "../auth";
 import { useSummary } from "../summary";
-import { SCOPE, modulesFor } from "../modules";
-import {
-  ErrorState,
-  Loading,
-  ProgressRing,
-  Stat,
-  greeting,
-  useClock,
-} from "../ui";
+import { SCOPE, launcherModules } from "../modules";
+import { ErrorState, Loading, ModuleTile, Stat, greeting } from "../ui";
 
-/** Home is the launcher: module tiles with a live nudge when work is waiting. */
+/**
+ * Home is the launcher, and it opens onto three doors: the queue you sweep,
+ * everything else you run, and the console's own settings. A fourth tile is a
+ * decision to make before work starts, so every area lives behind Operations.
+ */
 export default function Dashboard() {
   const { admin } = useAuth();
   const { data, error, reload } = useSummary();
-  const now = useClock();
-  const [filter, setFilter] = useState("");
+  const hello = useGreeting();
 
   const modules = useMemo(
-    () => (admin ? modulesFor(admin.role) : []),
+    () => (admin ? launcherModules(admin.role) : []),
     [admin]
   );
-
-  const shown = useMemo(() => {
-    const term = filter.trim().toLowerCase();
-    if (!term) return modules;
-    return modules.filter(
-      (m) =>
-        m.name.toLowerCase().includes(term) ||
-        m.description.toLowerCase().includes(term)
-    );
-  }, [modules, filter]);
 
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (!data || !admin) return <Loading />;
 
-  // Today's ring is attendance: how many residents are marked in so far.
-  const markedIn = data.attendanceToday;
-  const total = data.residents.total;
-  const percent = total ? (markedIn / total) * 100 : 0;
   const waiting = data.registrations.pending + data.openRequests;
 
   return (
-    <div className="stack animate-fade-up" style={{ gap: 20 }}>
+    <div className="stack animate-fade-up" style={{ gap: 24 }}>
       <section className="hero">
-        <ProgressRing
-          percent={percent}
-          label={`${markedIn}/${total}`}
-        />
         <div className="hero-copy">
           <h1>
-            {greeting(now)}, {admin.name.split(" ")[0]}
+            {hello}, {admin.name.split(" ")[0]}
           </h1>
-          <p className="muted small">
-            {markedIn} of {total} residents are marked in today.
-          </p>
-          <p className="caption inline">
-            <MapPin size={13} strokeWidth={2} />
+          <p className="muted inline" style={{ fontSize: 14, gap: 6 }}>
+            <MapPin size={14} strokeWidth={2} />
             {SCOPE} · {ADMIN_ROLE_LABELS[admin.role]}
           </p>
         </div>
@@ -88,104 +62,54 @@ export default function Dashboard() {
         <Stat
           label="Marked in today"
           value={data.attendanceToday}
+          suffix={`/${data.residents.total}`}
           tone="success"
         />
       </div>
 
       <div className="section-head">
-        <h2>Your modules</h2>
-        <div className="search-field">
-          <Search size={18} strokeWidth={2} className="search-icon" />
-          <input
-            value={filter}
-            aria-label="Find a module"
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Find a module…"
-          />
-        </div>
+        <h2>Where you work</h2>
       </div>
 
-      {shown.length === 0 ? (
-        <p className="muted small">
-          No module matches “{filter.trim()}”. Try another word.
-        </p>
-      ) : (
-        <div className="tiles">
-          {shown.map((mod) => {
-            const nudge = mod.nudge?.(data) ?? null;
-            return (
-              <Link
-                key={mod.key}
-                className="tile hover-elevate active-elevate-2"
-                to={mod.path}
-              >
-                <span
-                  className="tile-icon"
-                  style={{
-                    background: `color-mix(in srgb, var(${mod.tint}) 12%, transparent)`,
-                  }}
-                >
-                  <mod.icon
-                    size={22}
-                    color={`var(${mod.tint})`}
-                    strokeWidth={2}
-                  />
-                </span>
-                <strong>{mod.name}</strong>
-                <span className="small muted">{mod.description}</span>
-                {nudge && <span className="nudge">{nudge}</span>}
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-head">
-          <h2>Open requests by type</h2>
-        </div>
-        <dl>
-          <Row
-            label="Maintenance"
-            value={data.requestsByKind.maintenance}
-            to="/requests?kind=maintenance"
+      <div className="tiles lead">
+        {modules.map((mod) => (
+          <ModuleTile
+            key={mod.key}
+            module={mod}
+            nudge={mod.nudge?.(data) ?? null}
           />
-          <Row
-            label="Laundry"
-            value={data.requestsByKind.laundry}
-            to="/requests?kind=laundry"
-          />
-          <Row
-            label="Complaints"
-            value={data.requestsByKind.complaint}
-            to="/requests?kind=complaint"
-          />
-          <Row
-            label="Visits"
-            value={data.requestsByKind.visit}
-            to="/requests?kind=visit"
-          />
-        </dl>
+        ))}
       </div>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-  to,
-}: {
-  label: string;
-  value: number;
-  to: string;
-}) {
-  return (
-    <div className="kv">
-      <dt>
-        <Link to={to}>{label}</Link>
-      </dt>
-      <dd className="mono">{value}</dd>
-    </div>
-  );
+/**
+ * "Good morning" has to survive someone leaving the tab open past noon, so it
+ * re-renders on the hour boundary rather than polling on a timer.
+ */
+function useGreeting(): string {
+  const [hello, setHello] = useState(() => greeting());
+
+  useEffect(() => {
+    let id: ReturnType<typeof setTimeout>;
+
+    // Re-arms itself rather than keying off the greeting: most hour boundaries
+    // don't change the word, and a no-op setState wouldn't schedule the next.
+    const schedule = () => {
+      const now = new Date();
+      const nextHour = new Date(now);
+      nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+
+      id = setTimeout(() => {
+        setHello(greeting());
+        schedule();
+      }, nextHour.getTime() - now.getTime());
+    };
+
+    schedule();
+    return () => clearTimeout(id);
+  }, []);
+
+  return hello;
 }
