@@ -1,4 +1,4 @@
-# Store accounts and IDs — Thapar Hostel
+# Store accounts and IDs — UniLiv
 
 Everything a future release needs, so nothing has to be re-derived. Secrets are
 **not** here; only where to find them.
@@ -9,7 +9,7 @@ Everything a future release needs, so nothing has to be re-derived. Secrets are
 | --- | --- |
 | Developer account | Surbhi Chordia — Individual, Apple Developer Program |
 | Team ID | `UL2P2A75SV` |
-| App Store Connect app | **Thapar Hostel** |
+| App Store Connect app | **UniLiv** |
 | ASC app ID (`ascAppId`) | `6807443425` |
 | Bundle identifier | `com.projthapar.app` |
 | SKU | `thapar-hostel-ios` |

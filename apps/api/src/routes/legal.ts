@@ -8,7 +8,7 @@ import { Router } from "express";
  */
 export const legalRouter: Router = Router();
 
-const ORG_NAME = "Thapar Hostel";
+const ORG_NAME = "UniLiv";
 const OPERATOR = "Enaa Creations";
 const CONTACT_EMAIL = "support@enaacreations.com";
 const UPDATED = "1 September 2026";

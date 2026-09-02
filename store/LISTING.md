@@ -1,4 +1,4 @@
-# Store listing copy — Thapar Hostel
+# Store listing copy — UniLiv
 
 The text below is what goes into Play Console and App Store Connect. Keep this
 file as the source of truth; edit here first, then paste, so the two stores
@@ -8,7 +8,7 @@ don't drift apart.
 
 | | |
 | --- | --- |
-| App name | Thapar Hostel |
+| App name | UniLiv |
 | Package / bundle id | `com.projthapar.app` |
 | Category | House & Home (Play) / Lifestyle (App Store) |
 | Content rating target | Everyone (IARC) / target audience 18+ |
@@ -26,7 +26,7 @@ Rent, mess, laundry and repairs for your hostel room — all in one app.
 ## Full description (Play, 4000 characters max)
 
 ```
-Thapar Hostel is the resident app for your hostel. Everything you would
+UniLiv is the resident app for your hostel. Everything you would
 otherwise queue at the office for — your room, your rent, your meals, a leaking
 tap — happens on your phone, and you can see exactly what is happening with each
 request.
@@ -70,7 +70,7 @@ EVERYTHING IN ONE PLACE
 "All requests" collects every maintenance job, laundry order, complaint and
 visit in one filterable list, so nothing gets lost between modules.
 
-Thapar Hostel works only with hostels that use the service. Your registration is
+UniLiv works only with hostels that use the service. Your registration is
 approved by your hostel office before you can sign in.
 
 Questions: support@enaacreations.com

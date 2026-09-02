@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Thapar Hostel",
+    "name": "UniLiv",
     "slug": "thapar-hostel",
     "owner": "astropsumit",
     "scheme": "projthapar",
@@ -62,14 +62,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Thapar Hostel uses the camera so you can photograph a maintenance issue, hand over laundry, capture your ID document, or mark attendance and mess entry.",
+          "cameraPermission": "UniLiv uses the camera so you can photograph a maintenance issue, hand over laundry, capture your ID document, or mark attendance and mess entry.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Thapar Hostel needs access to your photos so you can attach an existing picture to a request or use it as your profile photo."
+          "photosPermission": "UniLiv needs access to your photos so you can attach an existing picture to a request or use it as your profile photo."
         }
       ],
       [
@@ -81,7 +81,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Thapar Hostel uses Face ID so you can unlock the app and mark attendance without typing your MPIN. Your biometric data stays on your device."
+          "faceIDPermission": "UniLiv uses Face ID so you can unlock the app and mark attendance without typing your MPIN. Your biometric data stays on your device."
         }
       ]
     ]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the Thapar Hostel icon set from one SVG mark (see mark.py)."""
+"""Render the UniLiv icon set from one SVG mark (see mark.py)."""
 import os, subprocess
 from mark import mark
 
@@ -52,8 +52,8 @@ FEATURE = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" 
 <g opacity="0.09" transform="translate(742,44) scale(0.60)">{mark("#FFFFFF")}</g>
 <g transform="translate(-46,-34) scale(0.36)">{mark("#FFFFFF")}</g>
 <text x="286" y="238" fill="#FFFFFF" font-size="72" font-weight="700" letter-spacing="-1.6"
-      font-family="Hanken Grotesk, DM Sans, Helvetica Neue, Arial, sans-serif">Thapar Hostel</text>
-<text x="288" y="300" fill="#FFFFFF" fill-opacity="0.94" font-size="31" font-weight="500" letter-spacing="-0.2"
+      font-family="Hanken Grotesk, DM Sans, Helvetica Neue, Arial, sans-serif">UniLiv</text>
+<text x="290" y="300" fill="#FFFFFF" fill-opacity="0.94" font-size="31" font-weight="500" letter-spacing="-0.2"
       font-family="DM Sans, Helvetica Neue, Arial, sans-serif">Rent, mess, laundry and repairs — in one app</text>
 </svg>'''
 FILES["play-feature-graphic"] = (FEATURE, 1024, 500)
