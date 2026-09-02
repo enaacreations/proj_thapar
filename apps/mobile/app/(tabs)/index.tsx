@@ -6,10 +6,17 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, MapPin, Search, X } from "lucide-react-native";
 import { useTheme } from "../../src/theme/ThemeProvider";
-import { layout, radius, space, withAlpha } from "../../src/theme/tokens";
+import {
+  iconWash,
+  layout,
+  radius,
+  space,
+  withAlpha,
+} from "../../src/theme/tokens";
 import { api } from "../../src/api/client";
 import { useAsync } from "../../src/lib/useAsync";
 import {
@@ -38,7 +45,8 @@ import { Text } from "../../src/components/Text";
 const COLUMNS = 3;
 
 export default function HomeScreen() {
-  const { c } = useTheme();
+  const { c, scheme, visualStyle } = useTheme();
+  const gradientLook = visualStyle === "gradient";
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -89,19 +97,44 @@ export default function HomeScreen() {
   const renderTile = (module: ModuleTile) => {
     const badge = badgeFor(module);
     const tint = c[module.tint];
+    const wash = iconWash[module.pastel][scheme];
 
     return (
       <Card
         key={module.key}
-        style={[styles.tile, { width: tileWidth }]}
+        style={[
+          styles.tile,
+          { width: tileWidth },
+          gradientLook && styles.tileWash,
+        ]}
         accessibilityLabel={module.name}
         onPress={() => router.push(module.href as never)}
       >
-        <View
-          style={[styles.iconChip, { backgroundColor: withAlpha(tint, 0.12) }]}
-        >
-          <module.icon size={22} color={tint} strokeWidth={2} />
-        </View>
+        {gradientLook && (
+          <LinearGradient
+            colors={[c.card, withAlpha(wash[0], 0.35)]}
+            start={{ x: 0.15, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={[StyleSheet.absoluteFill, styles.tileWashFill]}
+            pointerEvents="none"
+          />
+        )}
+        {gradientLook ? (
+          <LinearGradient
+            colors={[...wash]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.iconChip}
+          >
+            <module.icon size={22} color={c.ink} strokeWidth={2} />
+          </LinearGradient>
+        ) : (
+          <View
+            style={[styles.iconChip, { backgroundColor: withAlpha(tint, 0.12) }]}
+          >
+            <module.icon size={22} color={tint} strokeWidth={2} />
+          </View>
+        )}
         <Text variant="label" numberOfLines={2} style={styles.tileName}>
           {module.name}
         </Text>
@@ -292,6 +325,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
     alignItems: "center",
   },
+  tileWash: { overflow: "hidden" },
+  tileWashFill: { borderRadius: radius.xl },
   tileName: { textAlign: "center" },
   iconChip: {
     width: 36,
@@ -300,6 +335,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: space.xs,
+    overflow: "hidden",
   },
   nudge: {
     borderRadius: radius.pill,

@@ -11,7 +11,7 @@ import {
   type LucideProps,
 } from "lucide-react-native";
 import { useTheme } from "../../src/theme/ThemeProvider";
-import { fonts, gradient } from "../../src/theme/tokens";
+import { fonts, gradient, withAlpha } from "../../src/theme/tokens";
 
 /**
  * Height of the tappable row, before the device's bottom inset is added.
@@ -27,8 +27,9 @@ const TABS = [
 ] as const;
 
 export default function TabsLayout() {
-  const { c } = useTheme();
+  const { c, scheme, visualStyle } = useTheme();
   const insets = useSafeAreaInsets();
+  const gradientLook = visualStyle === "gradient";
 
   return (
     <Tabs
@@ -40,8 +41,13 @@ export default function TabsLayout() {
         // its built-in label from leftover space and clips it with its own
         // `overflow: hidden`, which cuts the text off at small bar heights.
         tabBarShowLabel: false,
+        sceneStyle: {
+          backgroundColor: gradientLook ? "transparent" : c.surface,
+        },
         tabBarStyle: {
-          backgroundColor: c.card,
+          backgroundColor: gradientLook
+            ? withAlpha(c.card, scheme === "dark" ? 0.92 : 0.96)
+            : c.card,
           borderTopColor: c.border,
           borderTopWidth: 1,
           // Grow by the bottom inset so the gesture bar / home indicator sits

@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useTheme } from "../theme/ThemeProvider";
-import { layout, radius } from "../theme/tokens";
+import { layout, radius, withAlpha } from "../theme/tokens";
 
 interface CardProps {
   children: ReactNode;
@@ -25,14 +25,22 @@ export function Card({
   padded = true,
   accessibilityLabel,
 }: CardProps) {
-  const { c } = useTheme();
+  const { c, scheme, visualStyle } = useTheme();
+  const gradientLook = visualStyle === "gradient";
 
   const base: StyleProp<ViewStyle> = [
     styles.card,
     {
-      backgroundColor: c.card,
+      backgroundColor: gradientLook
+        ? withAlpha(c.card, scheme === "dark" ? 0.88 : 0.94)
+        : c.card,
       borderColor: c.border,
       padding: padded ? layout.cardPadding : 0,
+      overflow: gradientLook ? "visible" : "hidden",
+    },
+    gradientLook && styles.shadow,
+    gradientLook && {
+      shadowColor: scheme === "dark" ? "#000000" : "#241A15",
     },
     style,
   ];
@@ -66,5 +74,12 @@ export function Card({
 
 const styles = StyleSheet.create({
   // Flat by design: a hairline border separates surfaces, never a shadow.
-  card: { borderRadius: radius.xl, borderWidth: 1, overflow: "hidden" },
+  // Gradient look adds a soft lift; overflow stays visible so the shadow shows.
+  card: { borderRadius: radius.xl, borderWidth: 1 },
+  shadow: {
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
+  },
 });

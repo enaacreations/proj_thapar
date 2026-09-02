@@ -13,7 +13,11 @@ import {
   Trash2,
 } from "lucide-react-native";
 import type { ResidentProfile } from "@proj/shared";
-import { useTheme, type ThemePreference } from "../../src/theme/ThemeProvider";
+import {
+  useTheme,
+  type ThemePreference,
+  type VisualStyle,
+} from "../../src/theme/ThemeProvider";
 import { space } from "../../src/theme/tokens";
 import { api } from "../../src/api/client";
 import { useAuth } from "../../src/auth/AuthProvider";
@@ -31,7 +35,8 @@ import { Text } from "../../src/components/Text";
 import { useToast } from "../../src/components/Toast";
 
 export default function ProfileScreen() {
-  const { c, preference, setPreference } = useTheme();
+  const { c, preference, setPreference, visualStyle, setVisualStyle } =
+    useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const toast = useToast();
@@ -194,6 +199,22 @@ export default function ProfileScreen() {
                   : `Always ${preference}`}
               </Text>
             </View>
+            <Text variant="label" tone="muted">
+              Look
+            </Text>
+            <Segmented<VisualStyle>
+              value={visualStyle}
+              onChange={setVisualStyle}
+              options={[
+                { value: "classic", label: "Classic" },
+                { value: "gradient", label: "Gradient" },
+              ]}
+            />
+            <Text variant="caption" tone="muted">
+              {visualStyle === "gradient"
+                ? "Sunset wash on screens and buttons."
+                : "Flat surfaces and solid fills."}
+            </Text>
           </Card>
 
           <Card style={styles.details}>

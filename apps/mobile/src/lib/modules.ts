@@ -15,6 +15,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react-native";
+import type { PastelKey } from "../theme/tokens";
 
 export type ModuleGroup = "daily" | "services" | "account";
 
@@ -33,6 +34,8 @@ export interface ModuleTile {
   group: ModuleGroup;
   /** Palette key used to tint the tile's icon chip. */
   tint: "accent" | "info" | "success" | "warning" | "pop" | "danger";
+  /** Pastel wash used for the icon chip when Look is Gradient. */
+  pastel: PastelKey;
   /** Words the Home search matches against, beyond name and description. */
   keywords: string[];
 }
@@ -50,6 +53,7 @@ export const MODULES: ModuleTile[] = [
     icon: UtensilsCrossed,
     group: "daily",
     tint: "accent",
+    pastel: "peach",
     keywords: ["mess", "meal", "breakfast", "lunch", "dinner", "snacks"],
   },
   {
@@ -60,6 +64,7 @@ export const MODULES: ModuleTile[] = [
     icon: ScanFace,
     group: "daily",
     tint: "success",
+    pastel: "mint",
     keywords: ["present", "face", "biometric", "geo", "location"],
   },
   {
@@ -70,6 +75,7 @@ export const MODULES: ModuleTile[] = [
     icon: QrCode,
     group: "daily",
     tint: "pop",
+    pastel: "lavender",
     keywords: ["qr", "scan", "turnstile", "gate", "fingerprint"],
   },
   {
@@ -80,6 +86,7 @@ export const MODULES: ModuleTile[] = [
     icon: Shirt,
     group: "services",
     tint: "info",
+    pastel: "sky",
     keywords: ["wash", "clothes", "press", "ironing", "pickup"],
   },
   {
@@ -90,6 +97,7 @@ export const MODULES: ModuleTile[] = [
     icon: Sparkles,
     group: "services",
     tint: "info",
+    pastel: "sage",
     keywords: ["clean", "cleaning", "deep", "pest", "bathroom", "upholstery"],
   },
   {
@@ -100,6 +108,7 @@ export const MODULES: ModuleTile[] = [
     icon: CalendarDays,
     group: "services",
     tint: "pop",
+    pastel: "lilac",
     keywords: ["amenity", "coworking", "study", "gaming", "bbq", "gym", "slot"],
   },
   {
@@ -110,6 +119,7 @@ export const MODULES: ModuleTile[] = [
     icon: Wrench,
     group: "services",
     tint: "warning",
+    pastel: "apricot",
     keywords: ["repair", "ac", "fan", "light", "plumbing", "key", "fix"],
   },
   {
@@ -120,6 +130,7 @@ export const MODULES: ModuleTile[] = [
     icon: MessageSquareWarning,
     group: "services",
     tint: "danger",
+    pastel: "rose",
     keywords: ["issue", "problem", "grievance"],
   },
   {
@@ -130,6 +141,7 @@ export const MODULES: ModuleTile[] = [
     icon: CalendarHeart,
     group: "services",
     tint: "pop",
+    pastel: "coral",
     keywords: ["parent", "guardian", "relative", "friend", "guest"],
   },
   {
@@ -140,6 +152,7 @@ export const MODULES: ModuleTile[] = [
     icon: Bed,
     group: "account",
     tint: "info",
+    pastel: "teal",
     keywords: ["hostel", "block", "wing", "floor", "sharing"],
   },
   {
@@ -150,6 +163,7 @@ export const MODULES: ModuleTile[] = [
     icon: CreditCard,
     group: "account",
     tint: "success",
+    pastel: "butter",
     keywords: ["fees", "rent", "ledger", "receipt", "due"],
   },
   {
@@ -160,6 +174,7 @@ export const MODULES: ModuleTile[] = [
     icon: ClipboardCheck,
     group: "account",
     tint: "pop",
+    pastel: "mist",
     keywords: [
       "onboarding", "kyc", "aadhaar", "lease", "agreement", "sign",
       "roommate", "checklist", "inventory", "tour", "layout", "move",
@@ -173,6 +188,7 @@ export const MODULES: ModuleTile[] = [
     icon: Star,
     group: "account",
     tint: "warning",
+    pastel: "honey",
     keywords: ["rating", "review", "stars"],
   },
   {
@@ -183,6 +199,7 @@ export const MODULES: ModuleTile[] = [
     icon: ClipboardList,
     group: "account",
     tint: "accent",
+    pastel: "dusk",
     keywords: ["tracking", "status", "history"],
   },
 ];

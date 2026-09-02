@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Minus, Plus, Star } from "lucide-react-native";
 import { useTheme } from "../theme/ThemeProvider";
-import { layout, radius, space } from "../theme/tokens";
+import { gradient, layout, radius, space } from "../theme/tokens";
 import { Text } from "./Text";
 
 /* ------------------------------------------------------ segmented control */
@@ -17,7 +18,8 @@ export function Segmented<T extends string>({
   value,
   onChange,
 }: SegmentedProps<T>) {
-  const { c } = useTheme();
+  const { c, visualStyle } = useTheme();
+  const gradientLook = visualStyle === "gradient";
 
   return (
     <View
@@ -36,12 +38,26 @@ export function Segmented<T extends string>({
             onPress={() => onChange(option.value)}
             style={[
               styles.segment,
-              active && { backgroundColor: c.card, borderColor: c.border },
+              active &&
+                !gradientLook && {
+                  backgroundColor: c.card,
+                  borderColor: c.border,
+                },
             ]}
           >
+            {active && gradientLook && (
+              <LinearGradient
+                colors={[...gradient]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <Text
               variant="label"
-              tone={active ? "ink" : "muted"}
+              tone={
+                active ? (gradientLook ? "onAccent" : "ink") : "muted"
+              }
               numberOfLines={1}
             >
               {option.label}
@@ -253,6 +269,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
     paddingHorizontal: 6,
+    overflow: "hidden",
   },
   stepper: { flexDirection: "row", alignItems: "center", gap: space.md },
   stepButton: {

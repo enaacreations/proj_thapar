@@ -11,26 +11,37 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dark, light, type Palette } from "./tokens";
 
 export type ThemePreference = "system" | "light" | "dark";
+export type VisualStyle = "classic" | "gradient";
 
 interface ThemeContextValue {
   c: Palette;
   scheme: "light" | "dark";
   preference: ThemePreference;
   setPreference: (next: ThemePreference) => void;
+  visualStyle: VisualStyle;
+  setVisualStyle: (next: VisualStyle) => void;
 }
 
 const STORAGE_KEY = "thapar.theme";
+const STYLE_STORAGE_KEY = "thapar.visualStyle";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  const [visualStyle, setVisualStyleState] = useState<VisualStyle>("classic");
 
   useEffect(() => {
-    void AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        setPreferenceState(stored);
+    void Promise.all([
+      AsyncStorage.getItem(STORAGE_KEY),
+      AsyncStorage.getItem(STYLE_STORAGE_KEY),
+    ]).then(([storedTheme, storedStyle]) => {
+      if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+        setPreferenceState(storedTheme);
+      }
+      if (storedStyle === "classic" || storedStyle === "gradient") {
+        setVisualStyleState(storedStyle);
       }
     });
   }, []);
@@ -51,8 +62,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setPreferenceState(next);
         void AsyncStorage.setItem(STORAGE_KEY, next);
       },
+      visualStyle,
+      setVisualStyle: (next) => {
+        setVisualStyleState(next);
+        void AsyncStorage.setItem(STYLE_STORAGE_KEY, next);
+      },
     };
-  }, [preference, systemScheme]);
+  }, [preference, systemScheme, visualStyle]);
 
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

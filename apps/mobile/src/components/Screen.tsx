@@ -8,9 +8,10 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../theme/ThemeProvider";
-import { layout, space } from "../theme/tokens";
+import { layout, space, surfaceWash } from "../theme/tokens";
 
 interface ScreenProps {
   children: ReactNode;
@@ -32,9 +33,11 @@ export function Screen({
   footer,
   contentStyle,
 }: ScreenProps) {
-  const { c } = useTheme();
+  const { c, scheme, visualStyle } = useTheme();
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
+  const gradientLook = visualStyle === "gradient";
+  const wash = scheme === "dark" ? surfaceWash.dark : surfaceWash.light;
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -82,7 +85,21 @@ export function Screen({
   );
 
   return (
-    <View style={[styles.flex, { backgroundColor: c.surface }]}>
+    <View
+      style={[
+        styles.flex,
+        { backgroundColor: gradientLook ? "transparent" : c.surface },
+      ]}
+    >
+      {gradientLook && (
+        <LinearGradient
+          colors={[...wash]}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      )}
       {body}
       {footer && (
         <View

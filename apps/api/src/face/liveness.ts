@@ -7,7 +7,7 @@ import {
 import { HttpError } from "../http-error";
 import { env } from "../env";
 import type { FaceSample } from "./index";
-import type { faceapi } from "./models";
+import type * as faceapi from "@vladmandic/face-api";
 
 /**
  * Liveness for the facial checks — attendance, and self-recorded mess entry.

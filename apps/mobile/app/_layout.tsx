@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
@@ -17,6 +18,7 @@ import { JetBrainsMono_600SemiBold } from "@expo-google-fonts/jetbrains-mono/600
 import { ThemeProvider, useTheme } from "../src/theme/ThemeProvider";
 import { AuthProvider, useAuth } from "../src/auth/AuthProvider";
 import { ToastProvider } from "../src/components/Toast";
+import { surfaceWash } from "../src/theme/tokens";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -51,7 +53,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { c, scheme } = useTheme();
+  const { c, scheme, visualStyle } = useTheme();
   const { session, restoring } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -87,16 +89,34 @@ function RootNavigator() {
     );
   }
 
+  const gradientLook = visualStyle === "gradient";
+  const wash = scheme === "dark" ? surfaceWash.dark : surfaceWash.light;
+
   return (
-    <>
+    <View style={styles.root}>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      {gradientLook && (
+        <LinearGradient
+          colors={[...wash]}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      )}
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: c.surface },
+          contentStyle: {
+            backgroundColor: gradientLook ? "transparent" : c.surface,
+          },
           animation: "slide_from_right",
         }}
       />
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
