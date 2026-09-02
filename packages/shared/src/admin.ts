@@ -187,7 +187,21 @@ export interface AdminDashboard {
  * The circle attendance is measured against. Marking in outside it is flagged,
  * not blocked, so this tunes reporting rather than gating anyone out.
  */
-export interface AttendanceGeofence {
+/**
+ * The site keeps two circles, because one can't do both jobs.
+ *
+ * "hostel" answers "is this resident on the property?" — it's wide, and
+ * attendance is measured against it. "mess" answers "is this resident standing
+ * at the servery?" — it's tight, and a self-recorded meal is *refused* outside
+ * it. Sharing one circle would force a choice between a fence so wide a
+ * resident can claim a plate from their room and one so tight nobody can mark
+ * attendance from their own block.
+ */
+export type GeofenceKind = "hostel" | "mess";
+
+export const GEOFENCE_KINDS: GeofenceKind[] = ["hostel", "mess"];
+
+export interface SiteGeofence {
   latitude: number;
   longitude: number;
   radiusMetres: number;
@@ -196,11 +210,21 @@ export interface AttendanceGeofence {
   /** Null until an admin saves it for the first time. */
   updatedAt: string | null;
   updatedBy: string | null;
+  /**
+   * False when nothing has been saved for this fence and the values above are
+   * borrowed from the hostel one. Only ever false for "mess": a deployment that
+   * has never opened the settings page still has a working hostel fence from
+   * the shipped defaults, but its mess fence is a guess and the console says so.
+   */
+  configured: boolean;
 }
 
+/** Both circles, so the settings page loads in one round trip. */
+export type SiteGeofences = Record<GeofenceKind, SiteGeofence>;
+
 export type UpdateGeofenceBody = Omit<
-  AttendanceGeofence,
-  "updatedAt" | "updatedBy"
+  SiteGeofence,
+  "updatedAt" | "updatedBy" | "configured"
 >;
 
 /** Where the campus sits until someone changes it in the admin console. */
@@ -210,6 +234,13 @@ export const DEFAULT_GEOFENCE: UpdateGeofenceBody = {
   radiusMetres: 300,
   locationLabel: "Thapar, Block B",
 };
+
+/**
+ * What the console suggests for a new mess fence. A servery is one building,
+ * so this is far tighter than the hostel default — but it's only a starting
+ * value in the form, never applied on the resident's behalf.
+ */
+export const SUGGESTED_MESS_RADIUS_METRES = 75;
 
 /** Guard rails the API enforces and the console shows as helper text. */
 export const GEOFENCE_LIMITS = {
@@ -245,7 +276,8 @@ export const ADMIN_ROUTES = {
 
   feedback: "/api/admin/feedback",
 
-  geofence: "/api/admin/settings/geofence",
+  geofences: "/api/admin/settings/geofences",
+  geofence: (kind: GeofenceKind) => `/api/admin/settings/geofence/${kind}`,
 
   messScan: "/api/admin/mess/scan",
 } as const;

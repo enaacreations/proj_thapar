@@ -191,6 +191,21 @@ export const MEAL_LABELS: Record<MealType, string> = {
   dinner: "Dinner",
 };
 
+/**
+ * Whichever meal is being served at `at`, so nobody has to pick from a list.
+ *
+ * Shared because three places decide this — the counter, the resident's phone
+ * and the API that records the entry — and a phone that thinks it is still
+ * lunch while the API has moved to snacks would book the wrong plate.
+ */
+export function mealBeingServed(at: Date = new Date()): MealType {
+  const hour = at.getHours();
+  if (hour < 10) return "breakfast";
+  if (hour < 15) return "lunch";
+  if (hour < 18) return "snacks";
+  return "dinner";
+}
+
 export interface MenuItem {
   name: string;
   veg: boolean;
@@ -513,9 +528,57 @@ export interface MessEntryRecord {
 }
 
 /**
+ * How a resident can record their own entry, without a counter scanning them.
+ *
+ * "qr" is deliberately absent: a QR entry is created by the counter redeeming
+ * a pass, so it can never arrive on the resident's own endpoint.
+ */
+export type SelfMessEntryMethod = Extract<
+  AttendanceMethod,
+  "facial" | "biometric"
+>;
+
+export const SELF_MESS_ENTRY_METHODS: SelfMessEntryMethod[] = [
+  "facial",
+  "biometric",
+];
+
+/**
+ * What the resident's phone posts to record its own entry.
+ *
+ * Unlike the counter's scan, nobody at the mess is attesting to this one, so
+ * the location is mandatory and the API refuses an entry taken outside the
+ * fence rather than merely noting it.
+ */
+export interface RecordMessEntryBody {
+  method: SelfMessEntryMethod;
+  latitude: number;
+  longitude: number;
+  /**
+   * Required when `method` is "facial": the first frame, looking straight at
+   * the camera. Identity is decided from this one.
+   */
+  photoBase64?: string;
+  /** The challenge token from `GET /api/mess/liveness`. Facial only. */
+  livenessToken?: string;
+  /** The second frame, taken while doing what the challenge asked. */
+  livenessPhotoBase64?: string;
+}
+
+/** What the phone gets back after recording its own entry. */
+export interface MessEntryResult {
+  entry: MessEntryRecord;
+  /**
+   * False when this resident was already served this meal — the entry is not
+   * double-counted and the phone says so rather than implying a second plate.
+   */
+  recorded: boolean;
+}
+
+/**
  * A resident's rotating mess pass. The phone shows it as a QR code and the
  * counter scans it, so presence is proven by the counter's device being at the
- * counter — the resident's phone never reports its own entry.
+ * counter rather than by the resident's phone reporting on itself.
  */
 export interface MessPass {
   /** Signed, opaque to the client; the API is the only thing that reads it. */
@@ -619,6 +682,7 @@ export const API_ROUTES = {
   feedback: "/api/feedback",
 
   messEntry: "/api/mess/entry",
+  messLivenessChallenge: "/api/mess/liveness",
   messPass: "/api/mess/pass",
 
   requests: "/api/requests",

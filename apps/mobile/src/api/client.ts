@@ -24,8 +24,10 @@ import {
   type LivenessChallenge,
   type MarkAttendanceBody,
   type MessEntryRecord,
+  type MessEntryResult,
   type MessPass,
   type PaymentSummary,
+  type RecordMessEntryBody,
   type RegistrationBody,
   type RegistrationResponse,
   type ResidentProfile,
@@ -272,6 +274,11 @@ export const api = {
   messEntries: () => request<MessEntryRecord[]>(API_ROUTES.messEntry),
   /** A rotating pass to show at the counter; the counter records the entry. */
   messPass: () => request<MessPass>(API_ROUTES.messPass),
+  messLivenessChallenge: () =>
+    request<LivenessChallenge>(API_ROUTES.messLivenessChallenge),
+  /** Records an entry the resident took themselves, by face or fingerprint. */
+  recordMessEntry: (body: RecordMessEntryBody) =>
+    post<MessEntryResult>(API_ROUTES.messEntry, body),
   requests: (kind?: string) =>
     request<ServiceRequestSummary[]>(
       kind ? `${API_ROUTES.requests}?kind=${kind}` : API_ROUTES.requests

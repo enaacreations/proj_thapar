@@ -44,8 +44,8 @@ export async function capturePhoto(): Promise<PhotoResult> {
 /**
  * A selfie for the face check, returned as base64 so the API can actually look
  * at it. The gallery is deliberately not an option here and the camera opens
- * front-facing: this photo decides whether attendance is marked, so it has to
- * be taken now, of the person holding the phone.
+ * front-facing: this photo decides whether attendance is marked or a meal is
+ * recorded, so it has to be taken now, of the person holding the phone.
  *
  * The check itself happens server-side. Everything here is about getting a
  * usable shot — none of it is what stops a photo of the wrong thing.
@@ -57,7 +57,7 @@ export async function captureSelfie(): Promise<SelfieResult> {
       base64: null,
       uri: null,
       problem:
-        "Camera access is off. Turn it on in your phone's settings to mark attendance with your face.",
+        "Camera access is off. Turn it on in your phone's settings to use the face check.",
     };
   }
 
