@@ -4,6 +4,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
+  type LayoutChangeEvent,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -50,13 +51,22 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [gridWidth, setGridWidth] = useState(0);
 
-  // Recomputed on rotation and on a foldable opening, which a static width
-  // in the stylesheet wouldn't survive.
-  const { width } = useWindowDimensions();
-  const tileWidth =
-    (width - layout.screenPadding * 2 - layout.cardGap * (COLUMNS - 1)) /
-    COLUMNS;
+  // First paint uses the window minus screen padding; onLayout then uses the
+  // real grid width so Android rounding / card borders cannot wrap the third
+  // tile and leave an empty column on the right.
+  const { width: windowWidth } = useWindowDimensions();
+  const available =
+    gridWidth > 0 ? gridWidth : windowWidth - layout.screenPadding * 2;
+  const tileWidth = Math.floor(
+    (available - layout.cardGap * (COLUMNS - 1)) / COLUMNS
+  );
+
+  const onGridLayout = (event: LayoutChangeEvent) => {
+    const next = event.nativeEvent.layout.width;
+    if (next > 0 && next !== gridWidth) setGridWidth(next);
+  };
 
   const profile = useAsync(() => api.profile(), []);
   const room = useAsync(() => api.room(), []);
@@ -245,7 +255,9 @@ export default function HomeScreen() {
           onAction={() => setQuery("")}
         />
       ) : searching ? (
-        <View style={styles.grid}>{tiles.map(renderTile)}</View>
+        <View style={styles.grid} onLayout={onGridLayout}>
+          {tiles.map(renderTile)}
+        </View>
       ) : (
         <View style={styles.sections}>
           {MODULE_GROUPS.map((group) => {
@@ -257,7 +269,9 @@ export default function HomeScreen() {
                 <Text variant="label" tone="muted" style={styles.sectionLabel}>
                   {group.label}
                 </Text>
-                <View style={styles.grid}>{groupTiles.map(renderTile)}</View>
+                <View style={styles.grid} onLayout={onGridLayout}>
+                  {groupTiles.map(renderTile)}
+                </View>
               </View>
             );
           })}
